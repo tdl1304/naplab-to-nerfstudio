@@ -2,10 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+.DS_Store
 # C extensions
 *.so
-
+/Trip094
+*.zip
 # Distribution / packaging
 .Python
 build/
