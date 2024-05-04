@@ -13,3 +13,6 @@ def make_homogenous(tensor: np.ndarray) -> np.ndarray:
         return out
     else:
         raise Exception("tensor should either be a vec3 or mat3, got shape", tensor.shape)
+
+def normalize(vec: np.ndarray):
+    return vec / np.linalg.norm(vec)

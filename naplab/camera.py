@@ -1,7 +1,8 @@
+import math
 import numpy as np
 
 from .frame_data import FrameData
-from .utils import make_homogenous
+from .utils import make_homogenous, normalize
 import json
 
 class Camera():
@@ -15,9 +16,13 @@ class Camera():
         self.width = width
         self.translation = make_homogenous(np.array(translation))
         self.roll_pitch_yaw = roll_pitch_yaw
+        self.decription = name
+    
+    def set_description(self, description: str):
+        self.decription = description
     
     def __repr__(self) -> str:
-        return f"Camera({self.name})"
+        return f"Camera({self.decription})"
     
     def get_camera_intrinsics(self):
         return {
@@ -87,6 +92,7 @@ class Camera():
     def get_camera_position(self, data: FrameData):
         """Get the camera position given initial position (x, y, z)"""
         # :)
+        return data.get_translation_matrix() @ data.get_rotation_matrix() @ self.translation
         return np.linalg.inv(self.get_rotation_matrix()) @ self.get_translation_matrix() @ self.get_rotation_matrix() @ data.center
     
     def get_camera_direction_vector(self, data: FrameData):
