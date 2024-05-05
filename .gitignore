@@ -12,7 +12,7 @@ __MACOSX/
 .Python
 build/
 develop-eggs/
-frames_output/
+images/
 dist/
 downloads/
 eggs/
