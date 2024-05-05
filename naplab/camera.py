@@ -98,8 +98,7 @@ class Camera():
     def get_camera_direction_vector(self, data: FrameData):
         """Get the camera direction given rotation matrix"""
         direction = data.get_rotation_matrix() @ self.get_rotation_matrix() @ np.array([1, 0, 0, 1])
-        direction = direction / np.linalg.norm(direction)
-        return direction
+        return normalize(direction)
 
 
 def parse_camera_json(filepath: str) -> list[Camera]:

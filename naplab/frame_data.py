@@ -112,7 +112,6 @@ class FrameData:
 def process_frame(file_path_left, file_path_right, verbose=False) -> list[FrameData]:
     gps_lefts = process_gps_data(file_path_left, verbose)
     gps_rights = process_gps_data(file_path_right, verbose)
-    # need a way to pick timestamp from gpu_lefts and gpu_rights
     data = []
     for i in range(len(gps_lefts) - 2):
             data.append(FrameData(gps_lefts[i], gps_rights[i], gps_lefts[i + 1], gps_rights[i + 1]))
