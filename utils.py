@@ -9,15 +9,18 @@ def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5),
     else:
         plt.figure(figsize=figsize)
     colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-    for series in series_list:
+    for i, series in enumerate(series_list):
+        c = colorpallet.pop(0)
         x = [data[0] for data in series]
         y = [data[1] for data in series]
         if is3D:
             z = [data[2] for data in series]
-            ax.plot(x, y, z, marker='.', markersize=0.5, color=colorpallet.pop(0))
+            ax.plot(x, y, z, marker='.', markersize=0.5, color=c, label=labels[i])
+            ax.scatter(x, y, z, color=c, marker='o')
         else:
-            plt.plot(x, y, marker='.', markersize=0.5, color=colorpallet.pop(0))
-            plt.scatter(x, y, marker='.', color=colorpallet.pop(0))
+            
+            plt.plot(x, y, marker='.', markersize=0.5, color=c, label=labels[i])
+            plt.scatter(x, y, marker='.', color=c, s=100)
     
     if is3D:
         ax.set_xlabel('X')
@@ -28,8 +31,8 @@ def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5),
         plt.xlabel('X')
         plt.ylabel('Y')
         plt.title('--------------------------------2D plot of XY coordinates--------------------------------')
-
-    plt.legend(labels)
+        
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
