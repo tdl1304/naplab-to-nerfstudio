@@ -17,6 +17,7 @@ def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5),
             ax.plot(x, y, z, marker='.', markersize=0.5, color=colorpallet.pop(0))
         else:
             plt.plot(x, y, marker='.', markersize=0.5, color=colorpallet.pop(0))
+            plt.scatter(x, y, marker='.', color=colorpallet.pop(0))
     
     if is3D:
         ax.set_xlabel('X')

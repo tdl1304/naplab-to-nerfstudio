@@ -30,6 +30,8 @@ class FrameData:
         self.center = make_homogenous((gps_left.position + gps_right.position) / 2)
         self.timestamp = (gps_left.timestamp + gps_right.timestamp) / 2
 
+        timestamp_diff = (gps_left.timestamp - gps_right.timestamp)
+        
         local_up = normalize(np.cross(gps_left.position - gps_right.position,  gps_right.position - next_gps_left.position))
         local_forward = normalize(np.cross(local_up, gps_left.position - gps_right.position))
         self.forward = local_forward
@@ -113,3 +115,69 @@ def process_frame(file_path_left, file_path_right, verbose=False) -> list[FrameD
     for i in range(len(gps_lefts) - 2):
             data.append(FrameData(gps_lefts[i], gps_rights[i], gps_lefts[i + 1], gps_rights[i + 1]))
     return data
+
+def better_process_data(file_path_left, file_path_right, timestamps: list[int], verbose = False) -> list[FrameData]:
+    gps_lefts = process_gps_data(file_path_left, verbose)
+    gps_rights = process_gps_data(file_path_right, verbose)
+    # Assumes utc time in microseconds
+    decasecond = 100_000
+    framedatas = []
+    interpolate = True
+    if interpolate:
+        for timestamp in timestamps:
+            gps_left = get_interpolated_GPS_Point(timestamp, gps_lefts)
+            gps_right = get_interpolated_GPS_Point(timestamp, gps_rights)
+            gps_left_next = get_interpolated_GPS_Point(timestamp + decasecond, gps_lefts)
+            gps_right_next = get_interpolated_GPS_Point(timestamp + decasecond, gps_rights)
+            framedatas.append(FrameData(gps_left, gps_right, gps_left_next, gps_right_next))
+    else:
+        for timestamp in timestamps:
+            gps_left = get_closest_gps_point(timestamp, gps_lefts)
+            gps_right = get_closest_gps_point(timestamp, gps_rights)
+            gps_left_next = get_closest_gps_point(timestamp + decasecond, gps_lefts)
+            gps_right_next = get_closest_gps_point(timestamp + decasecond, gps_rights)
+            framedatas.append(FrameData(gps_left, gps_right, gps_left_next, gps_right_next))
+    return framedatas
+
+def get_closest_gps_point(timestamp: int, gps_points: list[GPSPoint]) -> GPSPoint:
+    timestamps = np.array([point.timestamp for point in gps_points])
+    idx = np.nanargmin(np.abs(timestamps - timestamp))
+    return gps_points[idx]
+
+
+def get_interpolated_GPS_Point(timestamp: int, gps_points: list[GPSPoint]) -> GPSPoint:
+    timestamps = np.array([point.timestamp for point in gps_points])
+    idx = np.nanargmin(np.abs(timestamps - timestamp))
+    closest_timestamp = timestamps[idx]
+    if timestamp > closest_timestamp:
+        left = closest_timestamp
+        left_index = idx
+        if len(timestamps) - 1 > idx:
+            right = timestamps[idx + 1]
+            right_index = idx + 1
+        else:
+            right = timestamps[idx]
+            right_index = idx
+    else:
+        left = timestamps[idx - 1]
+        left_index = idx - 1
+        right = closest_timestamp
+        right_index = idx
+    
+    left_diff = timestamp - left
+    if left_diff == 0:
+        return gps_points[left_index]
+    right_diff = right - timestamp
+    if right_diff == 0:
+        return gps_points[right_index]
+    diff_sum = left_diff + right_diff
+    left_weight = 1 - left_diff / diff_sum
+    right_weight = 1 - right_diff / diff_sum
+    interpolated_point = gps_points[left_index].position * left_weight + gps_points[right_index].position * right_weight
+
+    return GPSPoint(timestamp, interpolated_point)
+
+def get_test_data(file_path_left, file_path_right, verbose = False):
+    gps_lefts = process_gps_data(file_path_left, verbose)
+    timestamps = [point.timestamp for point in gps_lefts][20:-20]
+    return better_process_data(file_path_left, file_path_right, timestamps, verbose)

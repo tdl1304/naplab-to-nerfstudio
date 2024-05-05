@@ -15,6 +15,7 @@ class Camera():
         self.height = height
         self.width = width
         self.translation = make_homogenous(np.array(translation))
+        #self.translation = self.translation @ make_homogenous(np.array([[0,0,1],[1,0,0],[0,1,0]]))
         self.roll_pitch_yaw = roll_pitch_yaw
         self.decription = name
     
@@ -92,7 +93,7 @@ class Camera():
     def get_camera_position(self, data: FrameData):
         """Get the camera position given initial position (x, y, z)"""
         # :)
-        return data.get_translation_matrix() @ data.get_rotation_matrix() @ self.translation
+        return data.center + data.get_rotation_matrix() @ self.translation
         return np.linalg.inv(self.get_rotation_matrix()) @ self.get_translation_matrix() @ self.get_rotation_matrix() @ data.center
     
     def get_camera_direction_vector(self, data: FrameData):
