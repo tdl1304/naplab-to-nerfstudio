@@ -44,9 +44,8 @@ class FrameData:
         if(local_up[2] < 0):
             self.roll = -1 * self.roll * math.pi - self.roll
 
-
     def get_rotation_matrix(self):
-        """Create a rotation matrix from roll, pitch, and yaw."""
+        # Create a rotation matrix from roll, pitch, and yaw.
         # Convert angles from degrees to radians
         roll = self.roll
         pitch = self.pitch
@@ -76,17 +75,15 @@ class FrameData:
         R = make_homogenous(R)
         return R
     
-    """
-    def get_rotation_matrix(self):
-        # rotates from world space to car space
-        a, b = normalize(self.center[:3]), normalize(self.direction[:3])
-        v = np.cross(a, b)
-        c = np.dot(a, b)
-        s = np.linalg.norm(v)
-        kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-        rotation_matrix = np.eye(3) + kmat + np.dot(kmat, kmat) * ((1 - c) / (s ** 2))
-        return make_homogenous(rotation_matrix)
-    """
+    # def get_rotation_matrix(self):
+    #     a, b = normalize(self.center[:3]), normalize(self.forward[:3])
+    #     v = np.cross(a, b)
+    #     c = np.dot(a, b)
+    #     s = np.linalg.norm(v)
+    #     kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    #     rotation_matrix = np.eye(3) + kmat + np.dot(kmat, kmat) * ((1 - c) / (s ** 2))
+    #     return make_homogenous(rotation_matrix)
+
     
     def get_translation_matrix(self):
         translation = np.identity(4)
