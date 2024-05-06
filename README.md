@@ -5,6 +5,7 @@ Convert naplab to nerfstudio data format
 ```
 pip install gdown
 gdown 15YWaN8pq19Oeo0SEx3UKi0Y8O976UM0M
+unzip Trip094.zip
 ```
 
 ## Install requirements

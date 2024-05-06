@@ -123,8 +123,8 @@ class GPSPointDataset(Dataset):
             gps_point.timestamp = (gps_point.timestamp - self.min_timestamp) / (self.max_timestamp - self.min_timestamp)
             gps_point.position = (gps_point.position - self.position_mean) / self.position_std
         
-        self.timestamp_tensors = torch.tensor([gps_point.timestamp for gps_point in self.data], dtype=torch.float32).unsqueeze(1).to(device)
-        self.position_tensors = torch.tensor([gps_point.position for gps_point in self.data], dtype=torch.float32).to(device)
+        self.timestamp_tensors = torch.tensor(np.array([gps_point.timestamp for gps_point in self.data]), dtype=torch.float32).unsqueeze(1).to(device)
+        self.position_tensors = torch.tensor(np.array([gps_point.position for gps_point in self.data]), dtype=torch.float32).to(device)
         
         if(self.denormalize_timestamp(self.data[0].timestamp) != test_timestamp):
             raise Exception("Error in denormalize_timestamp")
