@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5), is3D=False):
+def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5), is3D=False, show_scatter=True):
     """Plot 2D or 3D coordinates."""
     if is3D:
         fig = plt.figure(figsize=figsize)
@@ -16,11 +16,12 @@ def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5),
         if is3D:
             z = [data[2] for data in series]
             ax.plot(x, y, z, marker='.', markersize=0.5, color=c, label=labels[i])
-            ax.scatter(x, y, z, color=c, marker='o')
+            if show_scatter:
+                ax.scatter(x, y, z, color=c, marker='o')
         else:
-            
             plt.plot(x, y, marker='.', markersize=0.5, color=c, label=labels[i])
-            plt.scatter(x, y, marker='.', color=c, s=100)
+            if show_scatter:
+                plt.scatter(x, y, marker='.', color=c, s=100)
     
     if is3D:
         ax.set_xlabel('X')
