@@ -52,7 +52,7 @@ class CoordinatePredictionModel(nn.Module):
         return self.model(x)
 
 
-def train_model(model, train_loader, optimizer, scheduler, num_epochs):
+def train_model(model, train_loader, optimizer, scheduler, num_epochs, pth_path="./models/best_model.pth"):
     best_rmse = float('inf')  # Initialize best RMSE
     losses = []
     criterion = nn.MSELoss()
@@ -82,7 +82,7 @@ def train_model(model, train_loader, optimizer, scheduler, num_epochs):
         
         if avg_rmse < best_rmse:
             best_rmse = avg_rmse
-            torch.save(model.state_dict(), './models/best_model.pth')  # Save the best model
+            torch.save(model.state_dict(), pth_path)  # Save the best model
         
         if (epoch+1) % 100 == 0:
             clear_output(wait=True)
