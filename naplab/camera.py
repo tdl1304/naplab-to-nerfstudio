@@ -17,10 +17,10 @@ class Camera():
         self.translation = make_homogenous(np.array(translation))
         #self.translation = self.translation @ make_homogenous(np.array([[0,0,1],[1,0,0],[0,1,0]]))
         self.roll_pitch_yaw = roll_pitch_yaw
-        self.decription = name
+        self.description = name
     
     def set_description(self, description: str):
-        self.decription = description
+        self.description = description
     
     def __repr__(self) -> str:
         return f"Camera({self.decription})"

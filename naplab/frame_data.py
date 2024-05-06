@@ -29,24 +29,27 @@ class FrameData:
             raise Exception("mismatched gps position shape")
         self.left_point = make_homogenous(gps_left.position)
         self.right_point = make_homogenous(gps_right.position)
-        self.center = make_homogenous((gps_left.position + gps_right.position) / 2)
-        self.timestamp = (gps_left.timestamp + gps_right.timestamp) / 2
+        center = (gps_left.position + gps_right.position) / 2
+        self.center = make_homogenous(center)
+        # gps_left and gps_right timestamps should be equal
+        self.timestamp = gps_left.timestamp
 
-        timestamp_diff = (gps_left.timestamp - gps_right.timestamp)
+        next_center = (next_gps_left.position + next_gps_right.position) / 2
         
-        local_up = normalize(np.cross(gps_left.position - gps_right.position,  gps_right.position - next_gps_left.position))
-        local_forward = normalize(np.cross(local_up, gps_left.position - gps_right.position))
-        self.forward = local_forward
-        #print(local_forward)
+        self.up = make_homogenous(normalize(np.cross(gps_right.position - center, next_center - center)))
+        self.forward = make_homogenous(normalize(next_center - center))
 
-        self.pitch = math.asin(-local_forward[1])
-        self.yaw = math.atan2(local_forward[0], local_forward[2])
+        self.pitch = math.asin(-self.forward[2])
+        self.yaw = math.atan2(self.forward[1], self.forward[0])
 
         planeRightX = math.sin(self.yaw)
         planeRightY = -math.cos(self.yaw)
-        self.roll = math.asin(local_up[0]*planeRightX + local_up[1]*planeRightY)
-        if(local_up[2] < 0):
+        self.roll = math.asin(self.up[0]*planeRightX + self.up[1]*planeRightY)
+        if(self.up[2] < 0):
             self.roll = -1 * self.roll * math.pi - self.roll
+
+        self.check_matrices()
+
 
     def get_rotation_matrix(self):
         # Create a rotation matrix from roll, pitch, and yaw.
@@ -67,7 +70,7 @@ class FrameData:
             [0, 1, 0],
             [-np.sin(pitch), 0, np.cos(pitch)]
         ])
-        
+
         Rz = np.array([
             [np.cos(yaw), -np.sin(yaw), 0],
             [np.sin(yaw), np.cos(yaw), 0],
@@ -79,15 +82,22 @@ class FrameData:
         R = make_homogenous(R)
         return R
     
-    # def get_rotation_matrix(self):
-    #     a, b = normalize(self.center[:3]), normalize(self.forward[:3])
-    #     v = np.cross(a, b)
-    #     c = np.dot(a, b)
-    #     s = np.linalg.norm(v)
-    #     kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-    #     rotation_matrix = np.eye(3) + kmat + np.dot(kmat, kmat) * ((1 - c) / (s ** 2))
-    #     return make_homogenous(rotation_matrix)
-
+    def check_matrices(self):
+        position_from_tranlate = self.get_translation_matrix() @ np.array([0, 0, 0, 1])
+        assert np.sum(np.abs(self.get_translation_matrix() @ np.array([0,0,0,1]) - self.center)) < 0.000001, "translation matrix broken"
+        assert np.all(self.get_rotation_matrix() @ np.array([0,0,0,1]) == np.array([0,0,0,1])), "rotation matrix translated vector"
+        direction_from_rotation = self.get_rotation_matrix() @ np.array([1, 0, 0, 1])
+        direction_error = np.linalg.norm(self.forward - direction_from_rotation) 
+        if direction_error > 0.0001:
+            print(direction_error)
+            print("rotation matrix borked")
+            print("actual forward:")
+            print(self.forward)
+            print("calculated forward:")
+            print(direction_from_rotation)
+            print("pitch: ", self.pitch)
+            print("roll:  ", self.roll)
+            print()
     
     def get_translation_matrix(self):
         translation = np.identity(4)
@@ -126,42 +136,31 @@ def process_frame(file_path_left, file_path_right, verbose=False) -> list[FrameD
 def better_process_data(file_path_left, file_path_right, timestamps: list[int], verbose = False) -> list[FrameData]:
     gps_lefts = process_gps_data(file_path_left, verbose)
     gps_rights = process_gps_data(file_path_right, verbose)
-    # Assumes utc time in microseconds
     timestamps.sort()
-    decasecond = 100_000
     framedatas = []
 
-    interpolated_left = []
-    ts_i = 0
-    gps_i = 0
-    while ts_i < len(timestamps) and gps_i < len(gps_lefts):
-        if gps_lefts[gps_i].timestamp > timestamps[ts_i]:
-            if gps_i == 0:
-                ts_i += 1
-                continue
-            left_point = gps_lefts[gps_i - 1]
-            right_point = gps_lefts[gps_i]
-            interpolated_left.append(interpolate(left_point, right_point, timestamps[ts_i]))
-            ts_i += 1
-        gps_i += 1
-
-    interpolated_right = []
-    ts_i = 0
-    gps_i = 0
-    while ts_i < len(timestamps) and gps_i < len(gps_rights):
-        if gps_rights[gps_i].timestamp > timestamps[ts_i]:
-            if gps_i == 0:
-                ts_i += 1
-                continue
-            left_point = gps_rights[gps_i - 1]
-            right_point = gps_rights[gps_i]
-            interpolated_right.append(interpolate(left_point, right_point, timestamps[ts_i]))
-            ts_i += 1
-        gps_i += 1
+    interpolated_left = interpolate_points(gps_lefts, timestamps)
+    interpolated_right = interpolate_points(gps_rights, timestamps)
     assert len(interpolated_left) == len(interpolated_right)
     for i in range(len(interpolated_left) - 1):
         framedatas.append(FrameData(interpolated_left[i], interpolated_right[i], interpolated_left[i + 1], interpolated_right[i + 1]))
     return framedatas
+
+def interpolate_points(gps_points: list[GPSPoint], timestamps: list[int]) -> list[GPSPoint]:
+    interpolated= []
+    ts_i = 0
+    gps_i = 0
+    while ts_i < len(timestamps) and gps_i < len(gps_points):
+        if gps_points[gps_i].timestamp > timestamps[ts_i]:
+            if gps_i == 0:
+                ts_i += 1
+                continue
+            left_point = gps_points[gps_i - 1]
+            right_point = gps_points[gps_i]
+            interpolated.append(interpolate(left_point, right_point, timestamps[ts_i]))
+            ts_i += 1
+        gps_i += 1
+    return interpolated
 
 def interpolate(gps_left: GPSPoint, gps_right: GPSPoint, timestamp: int) -> GPSPoint:
     """

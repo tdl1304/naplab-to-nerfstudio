@@ -43,6 +43,7 @@ def plot_directions(position_series_list: list[list], direction_vector_list: lis
     if is3D:
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_zlim(65, 75)
     else:
         plt.figure(figsize=figsize)
 
@@ -56,7 +57,6 @@ def plot_directions(position_series_list: list[list], direction_vector_list: lis
             z = [data[2] for data in serie]
         
         V = np.array(dirs)
-        
         if is3D:
             ax.quiver(x, y, z, V[:, 0], V[:, 1], V[:, 2], color=color, length=1, arrow_length_ratio=.2)
         else:
