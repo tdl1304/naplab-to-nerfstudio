@@ -4,8 +4,6 @@ import math
 import numpy as np
 from .utils import make_homogenous, normalize
 from .gps import GPSPoint, process_gps_data
-import subprocess
-import os
 
 @dataclass
 class FrameData:
