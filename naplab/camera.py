@@ -1,9 +1,12 @@
 import math
 import numpy as np
 
-from .frame_data import FrameData
+from naplab.gps import GPSPoint
+
+from .frame_data import FrameData, better_process_data, read_timestamps, save_frames
 from .utils import make_homogenous, normalize
 import json
+
 
 class Camera():
     def __init__(self, name: str, cx: float, cy: float, height: int, width: int, translation: tuple, roll_pitch_yaw: tuple, fov=60):
@@ -15,7 +18,6 @@ class Camera():
         self.height = height
         self.width = width
         self.translation = make_homogenous(np.array(translation))
-        #self.translation = self.translation @ make_homogenous(np.array([[0,0,1],[1,0,0],[0,1,0]]))
         self.roll_pitch_yaw = roll_pitch_yaw
         self.description = name
     
@@ -122,3 +124,31 @@ def filter_cameras(cameraList: list[Camera], camera_filter):
     elif len(out) != len(camera_filter):
         raise Exception("Some cameras were not found")
     return out
+
+class ImagesWithTransforms():
+    def __init__(self, camera: Camera, source_video: str, timestamp_file: str, gps_left: str, gps_right: str, image_prefix):
+        self.camera = camera
+        self.image_prefix = image_prefix
+        timestamps = read_timestamps(timestamp_file)
+        frames = better_process_data(gps_left, gps_right, timestamps)
+        self.images_with_transforms = []
+        for frame in frames:
+            transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix())
+            image_index = timestamps.index(frame.timestamp)
+            self.images_with_transforms.append((image_index, transform))
+        indices = [it[0] for it in self.images_with_transforms]
+        save_frames(source_video, indices, image_prefix=image_prefix)
+
+    
+    def get_imagepaths_with_transforms(self):
+        return [(f"{self.image_prefix}_frames_output_{it[0]}.png", ) for it in self.images_with_transforms]
+
+def create_transform_json(all_images_transforms: list[ImagesWithTransforms], out_path="transforms.json"):
+    pass
+
+def transform_to_colmap(mat4: np.ndarray):
+    """
+    Takes a 4x4 matrix and converts it to a translation and quaternion
+    """
+    translation = mat4[3, :3]
+    pass

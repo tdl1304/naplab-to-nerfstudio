@@ -119,7 +119,7 @@ class FrameData:
         return np.linalg.inv(self.get_rotation_matrix())
 
 
-def read_timestamps(file_path_to_timestamps: str):
+def read_timestamps(file_path_to_timestamps: str) -> list[int]:
     with open(file_path_to_timestamps, 'r') as f:
         lines = f.readlines()
     return [int(line.split()[1]) for line in lines]
@@ -187,11 +187,11 @@ def get_test_data(file_path_left, file_path_right, verbose = False):
     timestamps = [point.timestamp for point in gps_lefts][100:-100]
     return better_process_data(file_path_left, file_path_right, timestamps, verbose)
 
-def save_frames(video_path, frame_indexes, output_dir='frames_output'):
+def save_frames(video_path, frame_indexes, output_dir='frames_output', image_prefix=''):
     try:
         os.makedirs(output_dir, exist_ok=True)
         for index in frame_indexes:
-            output_path = os.path.join(output_dir, f"frame_{index}.png")
+            output_path = os.path.join(output_dir, f"{image_prefix}_frame_{index}.png")
             subprocess.run(['ffmpeg', '-i', video_path, '-vf', f"select='eq(n\,{index})'", '-vsync', 'vfr', output_path], capture_output=True, text=True)
     except Exception as e:
         print("Error:", e)
