@@ -20,6 +20,7 @@ class Camera():
         self.cy = cy
         self.fx = (width * .5) / np.tan(np.radians(fov) / 2)
         self.fy = (height * .5) / np.tan(np.radians(fov) / 2)
+        self.fov = fov
         self.height = height
         self.width = width
         self.translation = make_homogenous(np.array(translation))
@@ -29,6 +30,7 @@ class Camera():
         self.video_path = video_path
         self.roll_pitch_yaw = roll_pitch_yaw
         self.description = name
+        self.coefficients = None
     
     def set_description(self, description: str):
         self.description = description
@@ -57,14 +59,19 @@ class Camera():
     
     def calculate_distortion_coeff(self) -> np.ndarray[float]:
         # Define the backward polynomial b(r)
+        if self.coefficients is not None:
+            return self.coefficients
         backward_polynomial = lambda r, j1, j2, j3, j4: j1*r + j2*r**2 + j3*r**3 + j4*r**4
         
         # Coefficients from the backward polynomial
         j1, j2, j3, j4 = self.bw_poly
 
         # Generate radial distance values (r) dynamically from center to various points in the image
-        x_values = np.linspace(0, self.width - 1, num=int(self.width/2))  # Sample across width
-        y_values = np.linspace(0, self.height - 1, num=int(self.height/2))  # Sample across height
+        square_length = self.width if self.width < self.height else self.height
+        x_values = np.linspace(0, self.width - 1, num=int(self.width))  # Sample across width
+        y_values = np.linspace(0, self.height - 1, num=int(self.height))  # Sample across height
+        x_values = np.linspace(0,square_length - 1, num=int(square_length))  # Sample across width
+        y_values = np.linspace(0, square_length - 1, num=int(square_length))  # Sample across height
 
         # Compute radial distances from center to all points
         x_grid, y_grid = np.meshgrid(x_values, y_values)
@@ -73,11 +80,12 @@ class Camera():
 
         # Fit a polynomial to the theta as function of r, seeking the inverse relationship
         # We define the forward polynomial we are trying to fit
-        forward_polynomial = lambda theta, k1, k2, k3, k4: k1*theta + k2*theta**2 + k3*theta**3 + k4*theta**4
+        # Finds kannala brandt coefficients
+        forward_polynomial = lambda theta, k1, k2, k3, k4: self.fy * (k1*theta + k2*theta**3 + k3*theta**5 + k4*theta**7)
 
         # Use curve fitting to find the best fit k coefficients
         k_coeffs, _ = curve_fit(forward_polynomial, theta_values, r_values)
-
+        self.coefficients = k_coeffs
         return k_coeffs # k1, k2, k3, k4
         
 
