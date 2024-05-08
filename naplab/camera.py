@@ -43,7 +43,7 @@ class Camera():
     def get_camera_intrinsics(self):
         k1, k2, k3, k4 = self.calculate_distortion_coeff()
         return {
-            "camera_model": "OPENCV",
+            "camera_model": "OPENCV_FISHEYE",
             "fl_x": self.fx,
             "fl_y": self.fy,
             "cx": self.cx,
@@ -181,13 +181,20 @@ class Camera():
         direction = data.get_rotation_matrix() @ self.get_rotation_matrix() @ np.array([1, 0, 0, 1])
         return normalize(direction)
     
-    
+
     def save_frames(self, frame_indexes, output_dir='frames_output'):
         try:
             os.makedirs(output_dir, exist_ok=True)
-            for index in frame_indexes:
-                output_path = os.path.join(output_dir, f"cam_{self.id}_frame_{index}.png")
-                subprocess.run(['ffmpeg', '-i', self.video_path, '-vf', f"select='eq(n\,{index})'", '-vsync', 'vfr', output_path], capture_output=True, text=True)
+            filter_string = '+'.join([f"eq(n\,{i})" for i in frame_indexes])
+            output_path = f"{output_dir}/cam_{self.id}_frame_%d.png"
+            command = [
+                'ffmpeg',
+                '-i', self.video_path,
+                '-vf', f"select='{filter_string}'",
+                '-vsync', 'vfr',
+                output_path
+            ]
+            subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             print("Error:", e)
 
