@@ -4,8 +4,6 @@ import math
 import numpy as np
 from .utils import make_homogenous, normalize
 from .gps import GPSPoint, process_gps_data
-import subprocess
-import os
 
 @dataclass
 class FrameData:
@@ -186,12 +184,3 @@ def get_test_data(file_path_left, file_path_right, verbose = False):
     gps_lefts = process_gps_data(file_path_left, verbose)
     timestamps = [point.timestamp for point in gps_lefts][100:-100]
     return better_process_data(file_path_left, file_path_right, timestamps, verbose)
-
-def save_frames(video_path, frame_indexes, output_dir='frames_output', image_prefix=''):
-    try:
-        os.makedirs(output_dir, exist_ok=True)
-        for index in frame_indexes:
-            output_path = os.path.join(output_dir, f"{image_prefix}_frame_{index}.png")
-            subprocess.run(['ffmpeg', '-i', video_path, '-vf', f"select='eq(n\,{index})'", '-vsync', 'vfr', output_path], capture_output=True, text=True)
-    except Exception as e:
-        print("Error:", e)

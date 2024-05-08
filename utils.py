@@ -8,7 +8,7 @@ def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5),
         ax = fig.add_subplot(111, projection='3d')
     else:
         plt.figure(figsize=figsize)
-    colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+    colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3', 'b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3']
     for i, series in enumerate(series_list):
         c = colorpallet.pop(0)
         x = [data[0] for data in series]
@@ -47,7 +47,7 @@ def plot_directions(position_series_list: list[list], direction_vector_list: lis
     else:
         plt.figure(figsize=figsize)
 
-    colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', 'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+    colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3', 'b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3']
     
     for serie, dirs in zip(position_series_list, direction_vector_list):
         color = colorpallet.pop(0)
