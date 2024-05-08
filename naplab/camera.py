@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import math
 import os
 import subprocess
@@ -181,22 +182,37 @@ class Camera():
         direction = data.get_rotation_matrix() @ self.get_rotation_matrix() @ np.array([1, 0, 0, 1])
         return normalize(direction)
     
+    
+    def save_process_batch(self, batch_indexes, output_dir, batch_number) -> str:
+        filter_string = '+'.join([f"eq(n,{i})" for i in batch_indexes])
+        output_path_template = f"{output_dir}/cam_{self.id}_batch_{batch_number}_frame_%d.png"
+        command = [
+            'ffmpeg',
+            '-i', self.video_path,
+            '-vf', f"select='{filter_string}'",
+            '-vsync', 'vfr',
+            '-frames:v', str(len(batch_indexes)),
+            output_path_template
+        ]
+        subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Rename files immediately after creation
+        for i, frame_index in enumerate(batch_indexes):
+            original_path = f"{output_dir}/cam_{self.id}_batch_{batch_number}_frame_{i+1}.png"
+            new_path = f"{output_dir}/cam_{self.id}_frame_{frame_index}.png"
+            os.rename(original_path, new_path)
+        return f"Image Saving Batch {batch_number} completed"
+    
 
-    def save_frames(self, frame_indexes, output_dir='frames_output'):
-        try:
-            os.makedirs(output_dir, exist_ok=True)
-            filter_string = '+'.join([f"eq(n\,{i})" for i in frame_indexes])
-            output_path = f"{output_dir}/cam_{self.id}_frame_%d.png"
-            command = [
-                'ffmpeg',
-                '-i', self.video_path,
-                '-vf', f"select='{filter_string}'",
-                '-vsync', 'vfr',
-                output_path
-            ]
-            subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except Exception as e:
-            print("Error:", e)
+    def save_frames(self, frame_indexes, output_dir='frames_output', batch_size=1000):
+        os.makedirs(output_dir, exist_ok=True)
+        batches = [frame_indexes[i:i + batch_size] for i in range(0, len(frame_indexes), batch_size)]
+        
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(lambda batch, i: self.save_process_batch(batch, output_dir, i),
+                                        batches, range(len(batches))))
+            for result in results:
+                print(result)
 
     
     
