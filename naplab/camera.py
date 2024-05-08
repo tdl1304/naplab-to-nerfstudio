@@ -2,6 +2,7 @@ import math
 import os
 import subprocess
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from naplab.gps import GPSPoint
 
@@ -110,11 +111,26 @@ class Camera():
         # Combine the rotation matrices
         R = Rz @ Ry @ Rx
         return make_homogenous(R)
+
+    def get_quaternion(self):
+        return R.from_matrix(self.get_rotation_matrix()[:3][:3]).as_quat(True)
     
     def get_translation_matrix(self):
         translation_matrix = np.identity(4)
         translation_matrix[:, 3] = self.translation
         return translation_matrix
+    
+    def get_translation_vector(self):
+        return self.get_translation_matrix()[3, :3]
+    
+    def get_colmap_image_repr(self, image_id: int, camera_id: int, image_name: str):
+        """
+        Creates a string that corresponds to one entry in the images.txt that colmap uses
+        """
+        quat = self.get_quaternion()
+        t = self.get_translation_vector()
+        return f"{image_id} {quat[0]} {quat[1]} {quat[2]} {quat[3]} {t[0]} {t[1]} {t[2]} {camera_id} {image_name}"
+    
     
     
     def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray):
