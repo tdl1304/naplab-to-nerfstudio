@@ -135,10 +135,13 @@ def better_process_data(file_path_left, file_path_right, timestamps: list[int], 
     gps_lefts = process_gps_data(file_path_left, verbose)
     gps_rights = process_gps_data(file_path_right, verbose)
     timestamps.sort()
+
+    timestamps = list(filter(lambda ts: gps_lefts[0].timestamp < ts and gps_rights[0].timestamp < ts and ts < gps_lefts[-1].timestamp and ts < gps_rights[-1].timestamp, timestamps))
     framedatas = []
 
     interpolated_left = interpolate_points(gps_lefts, timestamps)
     interpolated_right = interpolate_points(gps_rights, timestamps)
+
     assert len(interpolated_left) == len(interpolated_right)
     for i in range(len(interpolated_left) - 1):
         framedatas.append(FrameData(interpolated_left[i], interpolated_right[i], interpolated_left[i + 1], interpolated_right[i + 1]))
@@ -151,12 +154,12 @@ def interpolate_points(gps_points: list[GPSPoint], timestamps: list[int]) -> lis
     while ts_i < len(timestamps) and gps_i < len(gps_points):
         if gps_points[gps_i].timestamp > timestamps[ts_i]:
             if gps_i == 0:
-                ts_i += 1
-                continue
+                raise Exception(f"first timestamp before gps timestamp gps: {gps_points[gps_i].timestamp}, timestamps: {timestamps[ts_i]}")
             left_point = gps_points[gps_i - 1]
             right_point = gps_points[gps_i]
             interpolated.append(interpolate(left_point, right_point, timestamps[ts_i]))
             ts_i += 1
+            continue
         gps_i += 1
     return interpolated
 

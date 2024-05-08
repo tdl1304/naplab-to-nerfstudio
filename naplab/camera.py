@@ -14,7 +14,7 @@ import re
 
 
 class Camera():
-    def __init__(self, name: str, cx: float, cy: float, height: int, width: int, translation: tuple, roll_pitch_yaw: tuple, fov=60, bw_poly = np.array([0, 0, 0, 0]), video_path = "", timestamps_path = ""):
+    def __init__(self, name: str, cx: float, cy: float, height: int, width: int, translation: tuple, roll_pitch_yaw: tuple, fov=60, bw_poly = np.array([0, 0, 0, 0]), video_path = "", timestamps_path = "", id=0):
         self.name = name
         self.cx = cx
         self.cy = cy
@@ -31,6 +31,8 @@ class Camera():
         self.roll_pitch_yaw = roll_pitch_yaw
         self.description = name
         self.coefficients = None
+        self.image_names = None
+        self.id = id
     
     def set_description(self, description: str):
         self.description = description
@@ -58,6 +60,7 @@ class Camera():
     
     
     def calculate_distortion_coeff(self) -> np.ndarray[float]:
+        # Assumes f-theta camera model
         # Define the backward polynomial b(r)
         if self.coefficients is not None:
             return self.coefficients
@@ -88,6 +91,9 @@ class Camera():
         self.coefficients = k_coeffs
         return k_coeffs # k1, k2, k3, k4
         
+    def get_colmap_camera_description(self):
+        k1, k2, k3, k4 = self.calculate_distortion_coeff()
+        return f"{self.id} OPENCV_FISHEYE {self.width} {self.height} {self.fx} {self.fy} {self.cx} {self.cy} {k1} {k2} {k3} {k4}"
 
     def get_rotation_matrix(self):
         """Create a rotation matrix from roll, pitch, and yaw."""
@@ -120,25 +126,35 @@ class Camera():
         R = Rz @ Ry @ Rx
         return make_homogenous(R)
 
-    def get_quaternion(self):
-        return R.from_matrix(self.get_rotation_matrix()[:3][:3]).as_quat(True)
+    def get_quaternion(self, frame: FrameData):
+        rotation = frame.get_rotation_matrix() @ self.get_rotation_matrix()
+        return R.from_matrix(rotation[:3, :3]).as_quat(True)
     
     def get_translation_matrix(self):
         translation_matrix = np.identity(4)
         translation_matrix[:, 3] = self.translation
         return translation_matrix
     
-    def get_translation_vector(self):
-        return self.get_translation_matrix()[3, :3]
+    def get_translation_vector(self, frame: FrameData):
+        return self.get_camera_position(frame)
     
-    def get_colmap_image_repr(self, image_id: int, camera_id: int, image_name: str):
+    def get_colmap_image_repr(self, image_id: int, image_name: str, frame: FrameData):
         """
         Creates a string that corresponds to one entry in the images.txt that colmap uses
         """
-        quat = self.get_quaternion()
-        t = self.get_translation_vector()
-        return f"{image_id} {quat[0]} {quat[1]} {quat[2]} {quat[3]} {t[0]} {t[1]} {t[2]} {camera_id} {image_name}"
+        quat = self.get_quaternion(frame)
+        t = self.get_translation_vector(frame)
+        return f"{image_id} {quat[0]} {quat[1]} {quat[2]} {quat[3]} {t[0]} {t[1]} {t[2]} {self.id} {image_name}"
     
+    def get_colmap_image_txt(self, offset: int, frames: list[FrameData]):
+        all_images_string = ""
+        for i, frame in enumerate(frames):
+            frame_index = self.timestamps.index(frame.timestamp)
+            image_name = f"cam_{self.id}_frame_{frame_index}.png"
+            image_index = i + offset
+            all_images_string += self.get_colmap_image_repr(image_index, image_name, frame) + "\n\n"
+        return (all_images_string, len(frames))
+
 
     
     def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray):
@@ -158,7 +174,6 @@ class Camera():
         """Get the camera position given initial position (x, y, z)"""
         # :)
         return data.center + data.get_rotation_matrix() @ self.translation
-        return np.linalg.inv(self.get_rotation_matrix()) @ self.get_translation_matrix() @ self.get_rotation_matrix() @ data.center
     
     
     def get_camera_direction_vector(self, data: FrameData):
@@ -171,10 +186,11 @@ class Camera():
         try:
             os.makedirs(output_dir, exist_ok=True)
             for index in frame_indexes:
-                output_path = os.path.join(output_dir, f"frame_{index}.png")
+                output_path = os.path.join(output_dir, f"cam_{self.id}_frame_{index}.png")
                 subprocess.run(['ffmpeg', '-i', self.video_path, '-vf', f"select='eq(n\,{index})'", '-vsync', 'vfr', output_path], capture_output=True, text=True)
         except Exception as e:
             print("Error:", e)
+
     
     
     def _read_timestamps(self, file_path_to_timestamps: str):
@@ -191,7 +207,7 @@ def parse_camera_json(filepath: str) -> list[Camera]:
         sensors = [sensor for sensor in sensors if sensor["protocol"] == "camera.virtual"]
     
     cameraList = []
-    for camera in sensors:
+    for i, camera in enumerate(sensors):
         props = camera["properties"]
         sensorProps = camera["nominalSensor2Rig_FLU"]
         parameter = camera["parameter"]
@@ -203,7 +219,7 @@ def parse_camera_json(filepath: str) -> list[Camera]:
         fov = 120 if "120" in camera["name"] else 60
         video_path, timestamps_path = re.search(r"video=(.*),timestamp=(.*)", parameter).groups()
         cameraList.append(Camera(camera["name"], float(props["cx"]), float(props["cy"]), int(props["height"]), int(props["width"]), sensorProps["t"], sensorProps["roll-pitch-yaw"], 
-                                 fov=fov, bw_poly=bw_poly, video_path=f"{folder_path}/{video_path}", timestamps_path=f"{folder_path}/{timestamps_path}"))
+                                 fov=fov, bw_poly=bw_poly, video_path=f"{folder_path}/{video_path}", timestamps_path=f"{folder_path}/{timestamps_path}", id=i))
     return cameraList
 
 
