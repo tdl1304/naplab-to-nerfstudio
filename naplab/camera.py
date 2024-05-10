@@ -3,13 +3,11 @@ import os
 import subprocess
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from .frame_data import FrameData, better_process_data
+from .frame_data import FrameData
 from .utils import make_homogenous, normalize
 import json
 from scipy.optimize import curve_fit
 import re
-import copy
-from dataclasses import dataclass
 
 
 class Camera():
@@ -260,66 +258,3 @@ def filter_cameras(cameraList: list[Camera], camera_filter):
     elif len(out) != len(camera_filter):
         raise Exception("Some cameras were not found")
     return out
-
-
-# ----------------- Image Data/Image with transformations ----------------- #
-
-@dataclass
-class ImageData:
-    image_index: int
-    image_path: str
-    transform: np.ndarray
-
-class ImagesWithTransforms():
-    def __init__(self, camera: Camera, gps_left: str, gps_right: str, n:int, step=1, output_dir="images"):
-        self.camera = camera
-        self.images_with_transforms: list[ImageData] = []
-        timestamps = camera.timestamps
-        self.frames = better_process_data(gps_left, gps_right, timestamps).take(n, step=step)
-        self.output_dir = output_dir.split("/")[-1]
-        
-        for frame in self.frames:
-            transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix(), as_blender=True).tolist()
-            image_index = timestamps.index(frame.timestamp)
-            image_path = f"{self.output_dir}/cam_{self.camera.id}_frame_{image_index}.png"
-            self.images_with_transforms.append(ImageData(image_index, image_path, transform))
-        camera.save_frames([it.image_index for it in self.images_with_transforms], output_dir)
-
-def create_transform_json(all_images_transforms: list[ImagesWithTransforms], out_path="transforms.json"):
-    # all cameras must have same camera_model
-    camera_model = all_images_transforms[0].camera.get_camera_intrinsics()["camera_model"]
-    json_data = {"camera_model": camera_model}
-    frames = []
-    for images_transforms in all_images_transforms:
-        intrinsics = images_transforms.camera.get_camera_intrinsics()
-        intrinsics.pop("camera_model")
-        for it in images_transforms.images_with_transforms:
-            frame = copy.copy(intrinsics)
-            frame["file_path"] = it.image_path
-            frame["transform"] = it.transform
-            frames.append(frame)
-    json_data["frames"] = frames
-    
-    with open(out_path, "w") as f:
-        json.dump(json_data, f, indent=4)
-    print("Transforms JSON created")
-    
-
-def create_images_txt(all_images_transforms: list[ImagesWithTransforms], out_path="images.txt"):
-    total_offset = 0
-    full_str = ""
-    for it in all_images_transforms:
-        cam = it.camera
-        next_str, offset = cam.get_colmap_image_txt(total_offset, it.frames)
-        total_offset += offset
-        full_str += next_str
-    with open(out_path, "w") as f:
-        f.write(full_str)
-    print("Images.txt created")
-
-def transform_to_colmap(mat4: np.ndarray):
-    """
-    Takes a 4x4 matrix and converts it to a translation and quaternion
-    """
-    translation = mat4[3, :3]
-    pass

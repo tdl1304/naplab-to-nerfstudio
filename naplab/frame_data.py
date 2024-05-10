@@ -120,8 +120,8 @@ class FrameDataList(list[FrameData]):
     def __init__(self, *args):
         super().__init__(*args)
     
-    def take(self, n: int, offset=0, step=1) -> 'FrameDataList':
-        return FrameDataList([self[i] for i in range(offset, min(offset + n * step, len(self)), step)])
+    def take(self, n: int, offset=0, stride=1) -> 'FrameDataList':
+        return FrameDataList([self[i] for i in range(offset, min(offset + n * stride, len(self)), stride - 1)])
 
 
 def read_timestamps(file_path_to_timestamps: str) -> list[int]:
