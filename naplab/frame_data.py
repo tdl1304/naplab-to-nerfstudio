@@ -2,7 +2,7 @@ from dataclasses import InitVar, dataclass
 import math
 
 import numpy as np
-from .utils import make_homogenous, normalize
+from .utils import make_homogenous, normalize, utm_to_blender_rotation
 from .gps import GPSPoint, process_gps_data
 
 @dataclass
@@ -49,7 +49,7 @@ class FrameData:
         self.check_matrices()
 
 
-    def get_rotation_matrix(self):
+    def get_rotation_matrix(self, as_blender=False):
         # Create a rotation matrix from roll, pitch, and yaw.
         # Convert angles from degrees to radians
         roll = self.roll
@@ -77,8 +77,10 @@ class FrameData:
 
         # Combine the rotation matrices
         R = Rz @ Ry @ Rx
-        R = make_homogenous(R)
-        return R
+        if as_blender:
+            R[:, 0] = -R[:, 0]
+            R = R[:, [2, 0, 1]]
+        return make_homogenous(R)
     
     def check_matrices(self):
         position_from_tranlate = self.get_translation_matrix() @ np.array([0, 0, 0, 1])
@@ -97,9 +99,11 @@ class FrameData:
             print("roll:  ", self.roll)
             print()
     
-    def get_translation_matrix(self):
+    def get_translation_matrix(self, as_blender=False):
         translation = np.identity(4)
         translation[:, 3] = self.center
+        if as_blender:
+            return utm_to_blender_rotation() @ translation
         return translation
     
     def get_transform(self):

@@ -23,7 +23,7 @@ class ImagesWithTransforms():
         self.frames = better_process_data(gps_left, gps_right, timestamps).take(n, stride=stride)
         self.output_dir = output_dir.split("/")[-1]
         for frame in self.frames:
-            transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix(), as_blender=True).tolist()
+            transform = camera.get_transform_matrix(frame, as_blender=True).tolist()
             image_index = timestamps.index(frame.timestamp)
             image_path = f"{self.output_dir}/{self.camera.id}_{image_index}.png"
             self.images_with_transforms.append(ImageData(image_index, image_path, transform))
@@ -116,14 +116,14 @@ class NaplabDataset():
                     plt.scatter(z, x, marker='.', color=c, s=100)
         
         if is3D:
-            ax.set_xlabel('-Z')
+            ax.set_xlabel('Z')
             ax.set_ylabel('X')
             ax.set_zlabel('Y')
-            ax.set_title('--------------------------------3D plot of -ZXY coordinates--------------------------------')
+            ax.set_title('--------------------------------3D plot of ZXY coordinates--------------------------------')
         else:
-            plt.xlabel('-Z')
+            plt.xlabel('Z')
             plt.ylabel('X')
-            plt.title('--------------------------------2D plot of -ZX coordinates--------------------------------')
+            plt.title('--------------------------------2D plot of ZX coordinates--------------------------------')
             
         plt.legend()
         plt.tight_layout()

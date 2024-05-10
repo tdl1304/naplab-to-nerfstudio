@@ -4,7 +4,7 @@ import subprocess
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from .frame_data import FrameData
-from .utils import make_homogenous, normalize
+from .utils import make_homogenous, normalize, utm_to_blender_rotation
 import json
 from scipy.optimize import curve_fit
 import re
@@ -92,7 +92,7 @@ class Camera():
         k1, k2, k3, k4 = self.calculate_distortion_coeff()
         return f"{self.id} OPENCV_FISHEYE {self.width} {self.height} {self.fx} {self.fy} {self.cx} {self.cy} {k1} {k2} {k3} {k4}"
 
-    def get_rotation_matrix(self):
+    def get_rotation_matrix(self, as_blender=False):
         """Create a rotation matrix from roll, pitch, and yaw."""
         # Convert angles from degrees to radians
         roll, pitch, yaw = self.roll_pitch_yaw
@@ -121,15 +121,25 @@ class Camera():
 
         # Combine the rotation matrices
         R = Rz @ Ry @ Rx
+        if as_blender:
+            degs = np.radians(-90)
+            R[:, 0] = -R[:, 0]
+            R = np.array([
+                [np.cos(degs), -np.sin(degs), 0],
+                [np.sin(degs), np.cos(degs), 0],
+                [0, 0, 1]
+            ]) @ R[:, [2, 0, 1]]
         return make_homogenous(R)
 
     def get_quaternion(self, frame: FrameData):
         rotation = frame.get_rotation_matrix() @ self.get_rotation_matrix()
         return R.from_matrix(rotation[:3, :3]).as_quat(True)
     
-    def get_translation_matrix(self):
+    def get_translation_matrix(self, as_blender=False):
         translation_matrix = np.identity(4)
         translation_matrix[:, 3] = self.translation
+        if as_blender:
+            return utm_to_blender_rotation() @ translation_matrix
         return translation_matrix
     
     def get_translation_vector(self, frame: FrameData):
@@ -152,26 +162,19 @@ class Camera():
             all_images_string += self.get_colmap_image_repr(image_index, image_name, frame) + "\n\n"
         return (all_images_string, len(frames))
 
-    def utm_to_blender_rotation(self):
-        """Rotation matrix to rotate UTM33N coordinates into Blender's camera-facing setup"""
-        # z = -x, x = y, y = z
-        return np.array([
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-            [-1, 0, 0, 0],
-            [0, 0, 0, 1]
-        ])
     
-    def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray, as_blender=False):
+    
+    def get_transform_matrix(self, frame: FrameData, as_blender=False):
         """Get the translation matrix from the given position"""
-        rotation_matrix = self.get_rotation_matrix()
-
-        translation_matrix = self.get_translation_matrix()
+        rotation_matrix = self.get_rotation_matrix(as_blender=as_blender)
+        translation_matrix = self.get_translation_matrix(as_blender=as_blender)
         camera_local_transform = rotation_matrix @ translation_matrix
         
+        car_translation_matrix = frame.get_translation_matrix(as_blender=as_blender)
+        car_rotation_matrix = frame.get_rotation_matrix(as_blender=as_blender)
+        
         transform_matrix =  car_translation_matrix @ car_rotation_matrix @ camera_local_transform
-        if as_blender:
-            return self.utm_to_blender_rotation() @ transform_matrix
+
         return transform_matrix
     
     

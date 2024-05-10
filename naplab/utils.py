@@ -16,3 +16,14 @@ def make_homogenous(tensor: np.ndarray) -> np.ndarray:
 
 def normalize(vec: np.ndarray):
     return vec / np.linalg.norm(vec)
+
+
+def utm_to_blender_rotation():
+        """Rotation matrix to rotate UTM33N coordinates into Blender's camera-facing setup"""
+        # z = -x, x = y, y = z
+        return np.array([
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [-1, 0, 0, 0],
+            [0, 0, 0, 1]
+        ])
