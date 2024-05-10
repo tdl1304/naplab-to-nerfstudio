@@ -25,7 +25,7 @@ class ImagesWithTransforms():
         for frame in self.frames:
             transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix(), as_blender=True).tolist()
             image_index = timestamps.index(frame.timestamp)
-            image_path = f"{self.output_dir}/cam_{self.camera.id}_frame_{image_index}.png"
+            image_path = f"{self.output_dir}/{self.camera.id}_{image_index}.png"
             self.images_with_transforms.append(ImageData(image_index, image_path, transform))
         
         
@@ -76,14 +76,13 @@ class NaplabDataset():
         for images_transforms in self.all_images_with_transforms:
             intrinsics = images_transforms.camera.get_camera_intrinsics()
             intrinsics.pop("camera_model")
-            indices = []
             for it in images_transforms.images_with_transforms:
                 frame = copy.copy(intrinsics)
                 frame["file_path"] = it.image_path
                 frame["transform_matrix"] = it.transform
                 frames.append(frame)
-                indices.append(it.image_index)
             if not self.skip_image_creation:
+                indices = [i.image_index for i in images_transforms.images_with_transforms]
                 images_transforms.camera.save_frames(indices, f"{out_dir}/images")
         json_data["frames"] = frames
         

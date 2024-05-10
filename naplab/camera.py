@@ -203,7 +203,7 @@ class Camera():
         # Rename files immediately after creation
         for i, frame_index in enumerate(batch_indexes):
             original_path = f"{output_dir}/cam_{self.id}_batch_{batch_number}_frame_{i+1}.png"
-            new_path = f"{output_dir}/{frame_index}.png"
+            new_path = f"{output_dir}/{self.id}_{frame_index}.png"
             os.rename(original_path, new_path)
         return f"Cam {self.id} | Image Saving Batch {batch_number} completed"
     
