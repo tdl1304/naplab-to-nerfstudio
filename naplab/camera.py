@@ -35,7 +35,7 @@ class Camera():
         self.description = description
     
     def __repr__(self) -> str:
-        return f"Camera({self.decription})"
+        return f"Camera({self.description})"
     
     def get_camera_intrinsics(self):
         k1, k2, k3, k4 = self.calculate_distortion_coeff()
@@ -154,11 +154,12 @@ class Camera():
 
     def utm_to_blender_rotation(self):
         """Rotation matrix to rotate UTM33N coordinates into Blender's camera-facing setup"""
+        # z = -x, x = y, y = z
         return np.array([
-            [0, 1, 0, 0],  # East goes to the right (X)
-            [0, 0, 1, 0],  # Altitude goes up (Y)
-            [1, 0, 0, 0],  # North goes forward (Z)
-            [0, 0, 0, 1]   # Homogeneous coordinate
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [-1, 0, 0, 0],
+            [0, 0, 0, 1]
         ])
     
     def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray, as_blender=False):
@@ -169,7 +170,7 @@ class Camera():
         
         camera_local_transform = rotation_matrix @ translation_matrix
         
-        transform_matrix = car_translation_matrix @ car_rotation_matrix @ camera_local_transform
+        transform_matrix =  car_translation_matrix @ car_rotation_matrix @ camera_local_transform
         if as_blender:
             return self.utm_to_blender_rotation() @ transform_matrix
         return transform_matrix

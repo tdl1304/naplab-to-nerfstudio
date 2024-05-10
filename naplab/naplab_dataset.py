@@ -2,8 +2,8 @@ import copy
 from dataclasses import dataclass
 import json
 
+from matplotlib import pyplot as plt
 import numpy as np
-
 from naplab.camera import Camera, parse_camera_json
 from naplab.frame_data import better_process_data
 
@@ -86,3 +86,42 @@ class NaplabDataset():
         with open(f"{out_dir}/transforms.json", "w") as f:
             json.dump(json_data, f, indent=4)
         print(f"Transforms JSON created at {out_dir}/transforms.json")
+        
+        
+    def plot_blender_coordinates(self, figsize=(5, 5), is3D=False, show_scatter=True):
+        """Plot 2D or 3D coordinates."""
+        if is3D:
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(111, projection='3d')
+        else:
+            plt.figure(figsize=figsize)
+        colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3', 'b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3']
+        labels = [it.camera for it in self.all_images_with_transforms]
+        for i, iwt in enumerate(self.all_images_with_transforms):
+            c = colorpallet.pop(0)
+            image_positions = [np.array(iwt.transform)[:, 3] for iwt in iwt.images_with_transforms]
+            x = [data[0] for data in image_positions]
+            z = [data[2] for data in image_positions]
+            if is3D:
+                y = [data[1] for data in image_positions]
+                ax.plot(z, x, y, marker='.', markersize=0.5, color=c, label=labels[i])
+                if show_scatter:
+                    ax.scatter(z, x, y, color=c, marker='o')
+            else:
+                plt.plot(z, x, marker='.', markersize=0.5, color=c, label=labels[i])
+                if show_scatter:
+                    plt.scatter(z, x, marker='.', color=c, s=100)
+        
+        if is3D:
+            ax.set_xlabel('-Z')
+            ax.set_ylabel('X')
+            ax.set_zlabel('Y')
+            ax.set_title('--------------------------------3D plot of -ZXY coordinates--------------------------------')
+        else:
+            plt.xlabel('-Z')
+            plt.ylabel('X')
+            plt.title('--------------------------------2D plot of -ZX coordinates--------------------------------')
+            
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
