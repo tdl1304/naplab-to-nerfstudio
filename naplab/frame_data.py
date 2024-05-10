@@ -116,28 +116,26 @@ class FrameData:
         # rotates from car space to world space
         return np.linalg.inv(self.get_rotation_matrix())
 
+class FrameDataList(list[FrameData]):
+    def __init__(self, *args):
+        super().__init__(*args)
+    
+    def take(self, n: int, offset=0, step=1) -> 'FrameDataList':
+        return FrameDataList([self[i] for i in range(offset, min(offset + n * step, len(self)), step)])
+
 
 def read_timestamps(file_path_to_timestamps: str) -> list[int]:
     with open(file_path_to_timestamps, 'r') as f:
         lines = f.readlines()
     return [int(line.split()[1]) for line in lines]
 
-
-def process_frame(file_path_left, file_path_right, verbose=False) -> list[FrameData]:
-    gps_lefts = process_gps_data(file_path_left, verbose)
-    gps_rights = process_gps_data(file_path_right, verbose)
-    data = []
-    for i in range(len(gps_lefts) - 2):
-            data.append(FrameData(gps_lefts[i], gps_rights[i], gps_lefts[i + 1], gps_rights[i + 1]))
-    return data
-
-def better_process_data(file_path_left, file_path_right, timestamps: list[int], verbose = False) -> list[FrameData]:
+def better_process_data(file_path_left, file_path_right, timestamps: list[int], verbose = False) -> FrameDataList[FrameData]:
     gps_lefts = process_gps_data(file_path_left, verbose)
     gps_rights = process_gps_data(file_path_right, verbose)
     timestamps.sort()
 
     timestamps = list(filter(lambda ts: gps_lefts[0].timestamp < ts and gps_rights[0].timestamp < ts and ts < gps_lefts[-1].timestamp and ts < gps_rights[-1].timestamp, timestamps))
-    framedatas = []
+    framedatas = FrameDataList()
 
     interpolated_left = interpolate_points(gps_lefts, timestamps)
     interpolated_right = interpolate_points(gps_rights, timestamps)
@@ -183,7 +181,3 @@ def interpolate(gps_left: GPSPoint, gps_right: GPSPoint, timestamp: int) -> GPSP
     interpolated_position = gps_left.position * (1 - dist_left_n) + gps_right.position * (1 - dist_right_n)
     return GPSPoint(timestamp, interpolated_position)
 
-def get_test_data(file_path_left, file_path_right, verbose = False):
-    gps_lefts = process_gps_data(file_path_left, verbose)
-    timestamps = [point.timestamp for point in gps_lefts][100:-100]
-    return better_process_data(file_path_left, file_path_right, timestamps, verbose)

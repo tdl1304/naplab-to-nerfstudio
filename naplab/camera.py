@@ -1,17 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
-import math
 import os
 import subprocess
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
-from naplab.gps import GPSPoint
-
-from .frame_data import FrameData, better_process_data, read_timestamps
+from .frame_data import FrameData, better_process_data
 from .utils import make_homogenous, normalize
 import json
 from scipy.optimize import curve_fit
 import re
+import copy
+from dataclasses import dataclass
 
 
 class Camera():
@@ -156,9 +154,16 @@ class Camera():
             all_images_string += self.get_colmap_image_repr(image_index, image_name, frame) + "\n\n"
         return (all_images_string, len(frames))
 
-
+    def utm_to_blender_rotation(self):
+        """Rotation matrix to rotate UTM33N coordinates into Blender's camera-facing setup"""
+        return np.array([
+            [0, 1, 0, 0],  # East goes to the right (X)
+            [0, 0, 1, 0],  # Altitude goes up (Y)
+            [1, 0, 0, 0],  # North goes forward (Z)
+            [0, 0, 0, 1]   # Homogeneous coordinate
+        ])
     
-    def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray):
+    def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray, as_blender=False):
         """Get the translation matrix from the given position"""
         rotation_matrix = self.get_rotation_matrix()
 
@@ -167,7 +172,8 @@ class Camera():
         camera_local_transform = rotation_matrix @ translation_matrix
         
         transform_matrix = car_translation_matrix @ car_rotation_matrix @ camera_local_transform
-
+        if as_blender:
+            return self.utm_to_blender_rotation() @ transform_matrix
         return transform_matrix
     
     
@@ -201,7 +207,7 @@ class Camera():
             original_path = f"{output_dir}/cam_{self.id}_batch_{batch_number}_frame_{i+1}.png"
             new_path = f"{output_dir}/cam_{self.id}_frame_{frame_index}.png"
             os.rename(original_path, new_path)
-        return f"Image Saving Batch {batch_number} completed"
+        return f"Cam {self.id} | Image Saving Batch {batch_number} completed"
     
 
     def save_frames(self, frame_indexes, output_dir='frames_output', batch_size=1000):
@@ -220,6 +226,7 @@ class Camera():
         with open(file_path_to_timestamps, 'r') as f:
             lines = f.readlines()
         return [int(line.split()[1]) for line in lines]
+
 
 
 def parse_camera_json(filepath: str) -> list[Camera]:
@@ -254,26 +261,61 @@ def filter_cameras(cameraList: list[Camera], camera_filter):
         raise Exception("Some cameras were not found")
     return out
 
-class ImagesWithTransforms():
-    def __init__(self, camera: Camera, source_video: str, timestamp_file: str, gps_left: str, gps_right: str, image_prefix):
-        self.camera = camera
-        self.image_prefix = image_prefix
-        timestamps = read_timestamps(timestamp_file)
-        frames = better_process_data(gps_left, gps_right, timestamps)
-        self.images_with_transforms = []
-        for frame in frames:
-            transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix())
-            image_index = timestamps.index(frame.timestamp)
-            self.images_with_transforms.append((image_index, transform))
-        indices = [it[0] for it in self.images_with_transforms]
-        save_frames(source_video, indices, image_prefix=image_prefix)
 
-    
-    def get_imagepaths_with_transforms(self):
-        return [(f"{self.image_prefix}_frames_output_{it[0]}.png", ) for it in self.images_with_transforms]
+# ----------------- Image Data/Image with transformations ----------------- #
+
+@dataclass
+class ImageData:
+    image_index: int
+    image_path: str
+    transform: np.ndarray
+
+class ImagesWithTransforms():
+    def __init__(self, camera: Camera, gps_left: str, gps_right: str, n:int, step=1, output_dir="images"):
+        self.camera = camera
+        self.images_with_transforms: list[ImageData] = []
+        timestamps = camera.timestamps
+        self.frames = better_process_data(gps_left, gps_right, timestamps).take(n, step=step)
+        self.output_dir = output_dir.split("/")[-1]
+        
+        for frame in self.frames:
+            transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix(), as_blender=True).tolist()
+            image_index = timestamps.index(frame.timestamp)
+            image_path = f"{self.output_dir}/cam_{self.camera.id}_frame_{image_index}.png"
+            self.images_with_transforms.append(ImageData(image_index, image_path, transform))
+        camera.save_frames([it.image_index for it in self.images_with_transforms], output_dir)
 
 def create_transform_json(all_images_transforms: list[ImagesWithTransforms], out_path="transforms.json"):
-    pass
+    # all cameras must have same camera_model
+    camera_model = all_images_transforms[0].camera.get_camera_intrinsics()["camera_model"]
+    json_data = {"camera_model": camera_model}
+    frames = []
+    for images_transforms in all_images_transforms:
+        intrinsics = images_transforms.camera.get_camera_intrinsics()
+        intrinsics.pop("camera_model")
+        for it in images_transforms.images_with_transforms:
+            frame = copy.copy(intrinsics)
+            frame["file_path"] = it.image_path
+            frame["transform"] = it.transform
+            frames.append(frame)
+    json_data["frames"] = frames
+    
+    with open(out_path, "w") as f:
+        json.dump(json_data, f, indent=4)
+    print("Transforms JSON created")
+    
+
+def create_images_txt(all_images_transforms: list[ImagesWithTransforms], out_path="images.txt"):
+    total_offset = 0
+    full_str = ""
+    for it in all_images_transforms:
+        cam = it.camera
+        next_str, offset = cam.get_colmap_image_txt(total_offset, it.frames)
+        total_offset += offset
+        full_str += next_str
+    with open(out_path, "w") as f:
+        f.write(full_str)
+    print("Images.txt created")
 
 def transform_to_colmap(mat4: np.ndarray):
     """
