@@ -1,7 +1,7 @@
 import copy
 from dataclasses import dataclass
 import json
-
+import os
 import numpy as np
 
 from naplab.camera import Camera, parse_camera_json
@@ -21,7 +21,6 @@ class ImagesWithTransforms():
         timestamps = camera.timestamps
         self.frames = better_process_data(gps_left, gps_right, timestamps).take(n, stride=stride)
         self.output_dir = output_dir.split("/")[-1]
-        
         for frame in self.frames:
             transform = camera.get_transform_matrix(frame.get_translation_matrix(), frame.get_rotation_matrix(), as_blender=True).tolist()
             image_index = timestamps.index(frame.timestamp)
@@ -31,11 +30,11 @@ class ImagesWithTransforms():
         
 
 class NaplabDataset():
-    def __init__(self, gps_left: str, gps_right: str, fps: int, rig_json_path: str = "./Trip094/camerasandCanandGnssCalibratedAll_lidars00-virtual.json") -> None:
-        stride = np.max([30//fps, 1])
+    def __init__(self, gps_left: str, gps_right: str, fps: int, rig_json_path: str = "./Trip094/camerasandCanandGnssCalibratedAll_lidars00-virtual.json", skip_image_creation = False) -> None:
+        stride = np.max([30//fps, 2])
         self.cameras = parse_camera_json(rig_json_path)
-        self.all_images_with_transforms = [ImagesWithTransforms(camera, gps_left, gps_right, n=5, stride=stride) for camera in self.cameras]
-        
+        self.all_images_with_transforms = [ImagesWithTransforms(camera, gps_left, gps_right, n=15, stride=stride) for camera in self.cameras]
+        self.skip_image_creation = skip_image_creation
         
     def create_colmap_dataset(self, out_dir: str):
         """
@@ -43,6 +42,7 @@ class NaplabDataset():
         cameras.txt
         empty 3dpoint.txt
         """
+        os.makedirs(out_dir, exist_ok=True)
         total_offset = 0
         full_str = ""
         full_desc = ""
@@ -52,7 +52,8 @@ class NaplabDataset():
             total_offset += offset
             full_str += next_str
             indices = [i.image_index for i in it.images_with_transforms]
-            cam.save_frames(indices, f"{out_dir}/images")
+            if not self.skip_image_creation:
+                cam.save_frames(indices, f"{out_dir}/images")
             full_desc += cam.get_colmap_camera_description() + "\n"
             
         with open(f"{out_dir}/cameras.txt", "w") as f:
@@ -70,6 +71,7 @@ class NaplabDataset():
         camera_model = self.all_images_with_transforms[0].camera.get_camera_intrinsics()["camera_model"]
         json_data = {"camera_model": camera_model}
         frames = []
+        os.makedirs(out_dir, exist_ok=True)
         for images_transforms in self.all_images_with_transforms:
             intrinsics = images_transforms.camera.get_camera_intrinsics()
             intrinsics.pop("camera_model")
@@ -77,10 +79,11 @@ class NaplabDataset():
             for it in images_transforms.images_with_transforms:
                 frame = copy.copy(intrinsics)
                 frame["file_path"] = it.image_path
-                frame["transform"] = it.transform
+                frame["transform_matrix"] = it.transform
                 frames.append(frame)
                 indices.append(it.image_index)
-            images_transforms.camera.save_frames(indices, f"{out_dir}/images")
+            if not self.skip_image_creation:
+                images_transforms.camera.save_frames(indices, f"{out_dir}/images")
         json_data["frames"] = frames
         
         with open(f"{out_dir}/transforms.json", "w") as f:

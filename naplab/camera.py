@@ -154,11 +154,12 @@ class Camera():
 
     def utm_to_blender_rotation(self):
         """Rotation matrix to rotate UTM33N coordinates into Blender's camera-facing setup"""
+        return np.eye(4)
         return np.array([
-            [0, 1, 0, 0],  # East goes to the right (X)
-            [0, 0, 1, 0],  # Altitude goes up (Y)
-            [1, 0, 0, 0],  # North goes forward (Z)
-            [0, 0, 0, 1]   # Homogeneous coordinate
+            [ 1, 0,  0, 0],  # North goes forward (X)
+            [ 0, 0,  1, 0],  # Altitude goes up (Y)
+            [ 0, 1,  0, 0], # East goes to the right (Z)
+            [ 0, 0,  0, 1]   # Homogeneous coordinate
         ])
     
     def get_transform_matrix(self, car_translation_matrix: np.ndarray, car_rotation_matrix: np.ndarray, as_blender=False):
@@ -166,7 +167,6 @@ class Camera():
         rotation_matrix = self.get_rotation_matrix()
 
         translation_matrix = self.get_translation_matrix()
-        
         camera_local_transform = rotation_matrix @ translation_matrix
         
         transform_matrix = car_translation_matrix @ car_rotation_matrix @ camera_local_transform
@@ -203,7 +203,7 @@ class Camera():
         # Rename files immediately after creation
         for i, frame_index in enumerate(batch_indexes):
             original_path = f"{output_dir}/cam_{self.id}_batch_{batch_number}_frame_{i+1}.png"
-            new_path = f"{output_dir}/cam_{self.id}_frame_{frame_index}.png"
+            new_path = f"{output_dir}/{frame_index}.png"
             os.rename(original_path, new_path)
         return f"Cam {self.id} | Image Saving Batch {batch_number} completed"
     
