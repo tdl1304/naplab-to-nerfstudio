@@ -32,10 +32,10 @@ class ImagesWithTransforms():
         
 
 class NaplabDataset():
-    def __init__(self, gps_left: str, gps_right: str, fps: int, rig_json_path: str = "./Trip094/camerasandCanandGnssCalibratedAll_lidars00-virtual.json", skip_image_creation = False) -> None:
+    def __init__(self, gps_left: str, gps_right: str, fps: int, n = 15, rig_json_path: str = "./Trip094/camerasandCanandGnssCalibratedAll_lidars00-virtual.json", skip_image_creation = False) -> None:
         stride = np.max([30//fps, 2])
         self.cameras = parse_camera_json(rig_json_path)
-        self.all_images_with_transforms = [ImagesWithTransforms(camera, gps_left, gps_right, n=15, stride=stride) for camera in self.cameras]
+        self.all_images_with_transforms = [ImagesWithTransforms(camera, gps_left, gps_right, n=n, stride=stride) for camera in self.cameras]
         self.skip_image_creation = skip_image_creation
         
     def create_colmap_dataset(self, out_dir: str):
