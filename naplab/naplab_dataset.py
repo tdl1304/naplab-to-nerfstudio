@@ -1,6 +1,7 @@
 import copy
 from dataclasses import dataclass
 import json
+from typing import List
 
 from matplotlib import pyplot as plt
 import os
@@ -18,12 +19,12 @@ class ImageData:
 class ImagesWithTransforms():
     def __init__(self, camera: Camera, gps_left: str, gps_right: str, n:int, stride=1, output_dir="images"):
         self.camera = camera
-        self.images_with_transforms: list[ImageData] = []
+        self.images_with_transforms: List[ImageData] = []
         timestamps = camera.timestamps
         self.frames = better_process_data(gps_left, gps_right, timestamps).take(n, stride=stride)
         self.output_dir = output_dir.split("/")[-1]
         for frame in self.frames:
-            transform = camera.get_transform_matrix(frame, as_blender=True).tolist()
+            transform = camera.get_blender_transform_matrix(frame).tolist()
             image_index = timestamps.index(frame.timestamp)
             image_path = f"{self.output_dir}/{self.camera.id}_{image_index}.png"
             self.images_with_transforms.append(ImageData(image_index, image_path, transform))

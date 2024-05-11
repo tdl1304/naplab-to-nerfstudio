@@ -1,3 +1,4 @@
+from typing import List
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
@@ -106,7 +107,7 @@ def predict(model, timestamp) -> torch.Tensor:
     return output
 
 class GPSPointDataset(Dataset):
-    def __init__(self, data: list[GPSPoint]):
+    def __init__(self, data: List[GPSPoint]):
         self.data = copy.deepcopy(data)
         test_timestamp = data[0].timestamp
         test_position = data[0].position

@@ -1,5 +1,6 @@
 from dataclasses import InitVar, dataclass
 import math
+from typing import List
 
 import numpy as np
 from .utils import make_homogenous, normalize, utm_to_blender_rotation
@@ -49,7 +50,7 @@ class FrameData:
         self.check_matrices()
 
 
-    def get_rotation_matrix(self, as_blender=False):
+    def get_rotation_matrix(self):
         # Create a rotation matrix from roll, pitch, and yaw.
         # Convert angles from degrees to radians
         roll = self.roll
@@ -77,9 +78,6 @@ class FrameData:
 
         # Combine the rotation matrices
         R = Rz @ Ry @ Rx
-        if as_blender:
-            R[:, 0] = -R[:, 0]
-            R = R[:, [2, 0, 1]]
         return make_homogenous(R)
     
     def check_matrices(self):
@@ -99,11 +97,9 @@ class FrameData:
             print("roll:  ", self.roll)
             print()
     
-    def get_translation_matrix(self, as_blender=False):
+    def get_translation_matrix(self):
         translation = np.identity(4)
         translation[:, 3] = self.center
-        if as_blender:
-            return utm_to_blender_rotation() @ translation
         return translation
     
     def get_transform(self):
@@ -120,7 +116,7 @@ class FrameData:
         # rotates from car space to world space
         return np.linalg.inv(self.get_rotation_matrix())
 
-class FrameDataList(list[FrameData]):
+class FrameDataList(list):
     def __init__(self, *args):
         super().__init__(*args)
     
@@ -128,12 +124,12 @@ class FrameDataList(list[FrameData]):
         return FrameDataList([self[i] for i in range(offset, min(offset + n * stride, len(self)), stride - 1)])
 
 
-def read_timestamps(file_path_to_timestamps: str) -> list[int]:
+def read_timestamps(file_path_to_timestamps: str) -> List[int]:
     with open(file_path_to_timestamps, 'r') as f:
         lines = f.readlines()
     return [int(line.split()[1]) for line in lines]
 
-def better_process_data(file_path_left, file_path_right, timestamps: list[int], verbose = False) -> FrameDataList[FrameData]:
+def better_process_data(file_path_left, file_path_right, timestamps: List[int], verbose = False) -> FrameDataList:
     gps_lefts = process_gps_data(file_path_left, verbose)
     gps_rights = process_gps_data(file_path_right, verbose)
     timestamps.sort()
@@ -149,7 +145,7 @@ def better_process_data(file_path_left, file_path_right, timestamps: list[int], 
         framedatas.append(FrameData(interpolated_left[i], interpolated_right[i], interpolated_left[i + 1], interpolated_right[i + 1]))
     return framedatas
 
-def interpolate_points(gps_points: list[GPSPoint], timestamps: list[int]) -> list[GPSPoint]:
+def interpolate_points(gps_points: List[GPSPoint], timestamps: List[int]) -> List[GPSPoint]:
     interpolated= []
     ts_i = 0
     gps_i = 0

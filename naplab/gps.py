@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 import numpy as np
 import pyproj
 import re
@@ -16,7 +17,7 @@ class GPSPoint:
     position: np.ndarray
 
 
-def process_gps_data(file_path, verbose=False) -> list[GPSPoint]:
+def process_gps_data(file_path, verbose=False) -> List[GPSPoint]:
     points = []
     """Process a file to read GPS data and convert it to UTM."""
     with open(file_path, 'r') as file:

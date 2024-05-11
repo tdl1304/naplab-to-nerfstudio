@@ -27,3 +27,7 @@ def utm_to_blender_rotation():
             [-1, 0, 0, 0],
             [0, 0, 0, 1]
         ])
+
+def create_bmp(pixel_data, width, height, output_file_path):
+    with open(output_file_path, 'wb') as bmp_file:
+        bmp_file.write(pixel_data)

@@ -1,7 +1,8 @@
+from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5), is3D=False, show_scatter=True):
+def plot_coordinates(series_list: List[list], labels: List[str], figsize=(5, 5), is3D=False, show_scatter=True):
     """Plot 2D or 3D coordinates."""
     if is3D:
         fig = plt.figure(figsize=figsize)
@@ -38,7 +39,7 @@ def plot_coordinates(series_list: list[list], labels: list[str], figsize=(5, 5),
     plt.show()
 
 
-def plot_directions(position_series_list: list[list], direction_vector_list: list[list], labels: list[str], figsize=(5, 5), is3D=False):
+def plot_directions(position_series_list: List[list], direction_vector_list: List[list], labels: List[str], figsize=(5, 5), is3D=False):
     """Plot 2D or 3D coordinates."""
     if is3D:
         fig = plt.figure(figsize=figsize)

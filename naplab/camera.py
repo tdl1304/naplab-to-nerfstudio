@@ -1,10 +1,12 @@
+import base64
 from concurrent.futures import ThreadPoolExecutor
 import os
 import subprocess
+from typing import List
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from .frame_data import FrameData
-from .utils import make_homogenous, normalize, utm_to_blender_rotation
+from .utils import create_bmp, make_homogenous, normalize, utm_to_blender_rotation
 import json
 from scipy.optimize import curve_fit
 import re
@@ -30,9 +32,24 @@ class Camera():
         self.coefficients = None
         self.image_names = None
         self.id = id
+        self.car_mask = None
+        self.mask_resolution = None
     
     def set_description(self, description: str):
         self.description = description
+        
+    def set_car_mask(self, mask: str, resolution: tuple):
+        self.car_mask = mask
+        self.mask_resolution = resolution
+        
+    def create_car_mask(self):
+        # create a car mask per camera
+        return
+        width, height = self.mask_resolution
+        pixel_data = base64.b64decode(self.car_mask)
+        print(len(pixel_data))
+        output_file_path = 'output.bmp'
+        create_bmp(pixel_data, width, height, output_file_path)
     
     def __repr__(self) -> str:
         return f"Camera({self.description})"
@@ -56,7 +73,7 @@ class Camera():
         }
     
     
-    def calculate_distortion_coeff(self) -> np.ndarray[float]:
+    def calculate_distortion_coeff(self) -> 'np.ndarray[float]':
         # Assumes f-theta camera model
         # Define the backward polynomial b(r)
         if self.coefficients is not None:
@@ -92,10 +109,12 @@ class Camera():
         k1, k2, k3, k4 = self.calculate_distortion_coeff()
         return f"{self.id} OPENCV_FISHEYE {self.width} {self.height} {self.fx} {self.fy} {self.cx} {self.cy} {k1} {k2} {k3} {k4}"
 
-    def get_rotation_matrix(self, as_blender=False):
+    def get_rotation_matrix(self, roll_pitch_yaw: tuple = None):
         """Create a rotation matrix from roll, pitch, and yaw."""
+        if roll_pitch_yaw is None:
+            roll_pitch_yaw = self.roll_pitch_yaw
         # Convert angles from degrees to radians
-        roll, pitch, yaw = self.roll_pitch_yaw
+        roll, pitch, yaw = roll_pitch_yaw
         roll = np.radians(roll)
         pitch = np.radians(pitch)
         yaw = np.radians(yaw)
@@ -121,25 +140,15 @@ class Camera():
 
         # Combine the rotation matrices
         R = Rz @ Ry @ Rx
-        if as_blender:
-            degs = np.radians(-90)
-            R[:, 0] = -R[:, 0]
-            R = np.array([
-                [np.cos(degs), -np.sin(degs), 0],
-                [np.sin(degs), np.cos(degs), 0],
-                [0, 0, 1]
-            ]) @ R[:, [2, 0, 1]]
         return make_homogenous(R)
 
     def get_quaternion(self, frame: FrameData):
         rotation = frame.get_rotation_matrix() @ self.get_rotation_matrix()
         return R.from_matrix(rotation[:3, :3]).as_quat(True)
     
-    def get_translation_matrix(self, as_blender=False):
+    def get_translation_matrix(self):
         translation_matrix = np.identity(4)
         translation_matrix[:, 3] = self.translation
-        if as_blender:
-            return utm_to_blender_rotation() @ translation_matrix
         return translation_matrix
     
     def get_translation_vector(self, frame: FrameData):
@@ -153,7 +162,7 @@ class Camera():
         t = self.get_translation_vector(frame)
         return f"{image_id} {quat[0]} {quat[1]} {quat[2]} {quat[3]} {t[0]} {t[1]} {t[2]} {self.id} {image_name}"
     
-    def get_colmap_image_txt(self, offset: int, frames: list[FrameData]):
+    def get_colmap_image_txt(self, offset: int, frames: List[FrameData]):
         all_images_string = ""
         for i, frame in enumerate(frames):
             frame_index = self.timestamps.index(frame.timestamp)
@@ -164,18 +173,33 @@ class Camera():
 
     
     
-    def get_transform_matrix(self, frame: FrameData, as_blender=False):
+    def get_transform_matrix(self, frame: FrameData):
         """Get the translation matrix from the given position"""
-        rotation_matrix = self.get_rotation_matrix(as_blender=as_blender)
-        translation_matrix = self.get_translation_matrix(as_blender=as_blender)
+        rotation_matrix = self.get_rotation_matrix()
+        translation_matrix = self.get_translation_matrix()
         camera_local_transform = rotation_matrix @ translation_matrix
         
-        car_translation_matrix = frame.get_translation_matrix(as_blender=as_blender)
-        car_rotation_matrix = frame.get_rotation_matrix(as_blender=as_blender)
+        car_translation_matrix = frame.get_translation_matrix()
+        car_rotation_matrix = frame.get_rotation_matrix()
         
-        transform_matrix =  car_translation_matrix @ car_rotation_matrix @ camera_local_transform
-
+        transform_matrix = car_translation_matrix @ car_rotation_matrix @ camera_local_transform
+        
         return transform_matrix
+    
+    
+    def get_blender_transform_matrix(self, frame: FrameData):
+        """Get the translation matrix from the given position in blender"""
+        t = self.get_transform_matrix(frame)
+        x, y, z = t[0, 3], t[1, 3], t[2, 3]
+        rotation = frame.get_rotation_matrix() @ self.get_rotation_matrix()
+        roll, pitch, yaw = R.from_matrix(rotation[:3, :3]).as_euler("xyz", degrees=True)
+        # Basis change
+        roll, pitch, yaw = pitch, yaw, roll
+        x, y, z = y, z, -x
+        
+        transform = self.get_rotation_matrix((roll, pitch, yaw))
+        transform[:3, 3] = np.array([x, y, z])
+        return transform
     
     
     def get_camera_position(self, data: FrameData):
@@ -230,7 +254,7 @@ class Camera():
 
 
 
-def parse_camera_json(filepath: str) -> list[Camera]:
+def parse_camera_json(filepath: str) -> List[Camera]:
     with open(filepath, "r") as f:
         folder_path = os.path.dirname(filepath)
         data = json.load(f)
@@ -242,6 +266,7 @@ def parse_camera_json(filepath: str) -> list[Camera]:
         props = camera["properties"]
         sensorProps = camera["nominalSensor2Rig_FLU"]
         parameter = camera["parameter"]
+        carmask = camera["car-mask"]
         
         if props["Model"] != "ftheta":
             raise Exception("Only ftheta cameras are supported")
@@ -249,12 +274,15 @@ def parse_camera_json(filepath: str) -> list[Camera]:
         bw_poly = np.array([float(x) for x in raw_bw_poly.strip().split(" ")[1:]])
         fov = 120 if "120" in camera["name"] else 60
         video_path, timestamps_path = re.search(r"video=(.*),timestamp=(.*)", parameter).groups()
-        cameraList.append(Camera(camera["name"], float(props["cx"]), float(props["cy"]), int(props["height"]), int(props["width"]), sensorProps["t"], sensorProps["roll-pitch-yaw"], 
-                                 fov=fov, bw_poly=bw_poly, video_path=f"{folder_path}/{video_path}", timestamps_path=f"{folder_path}/{timestamps_path}", id=i))
+        cam = Camera(camera["name"], float(props["cx"]), float(props["cy"]), int(props["height"]), int(props["width"]), sensorProps["t"], sensorProps["roll-pitch-yaw"], 
+                                 fov=fov, bw_poly=bw_poly, video_path=f"{folder_path}/{video_path}", timestamps_path=f"{folder_path}/{timestamps_path}", id=i)
+        cam.set_car_mask(carmask["data/rle16-base64"], carmask["resolution"])
+        cameraList.append(cam)
+        
     return cameraList
 
 
-def filter_cameras(cameraList: list[Camera], camera_filter):
+def filter_cameras(cameraList: List[Camera], camera_filter):
     out = [cam for cam in cameraList if cam.name in camera_filter]
     if len(out) == 0:
         raise Exception("No cameras found with the given filter")
