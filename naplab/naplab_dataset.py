@@ -108,19 +108,19 @@ class NaplabDataset():
             z = [data[2] for data in image_positions]
             if is3D:
                 y = [data[1] for data in image_positions]
-                ax.plot(z, x, y, marker='.', markersize=0.5, color=c, label=labels[i])
+                ax.plot(z, x, y, marker='.', markersize=0.5, color=c, label=labels[i]) # type: ignore
                 if show_scatter:
-                    ax.scatter(z, x, y, color=c, marker='o')
+                    ax.scatter(z, x, y, color=c, marker='o') # type: ignore
             else:
                 plt.plot(z, x, marker='.', markersize=0.5, color=c, label=labels[i])
                 if show_scatter:
-                    plt.scatter(z, x, marker='.', color=c, s=100)
+                    plt.scatter(z, x, marker='.', color=c, s=100) # type: ignore
         
         if is3D:
-            ax.set_xlabel('Z')
-            ax.set_ylabel('X')
-            ax.set_zlabel('Y')
-            ax.set_title('--------------------------------3D plot of ZXY coordinates--------------------------------')
+            ax.set_xlabel('Z') # type: ignore
+            ax.set_ylabel('X') # type: ignore
+            ax.set_zlabel('Y') # type: ignore
+            ax.set_title('--------------------------------3D plot of ZXY coordinates--------------------------------') # type: ignore
         else:
             plt.xlabel('Z')
             plt.ylabel('X')

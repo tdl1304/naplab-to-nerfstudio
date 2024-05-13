@@ -6,7 +6,7 @@ def plot_coordinates(series_list: List[list], labels: List[str], figsize=(5, 5),
     """Plot 2D or 3D coordinates."""
     if is3D:
         fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(111, projection='3d')
+        ax: plt.Axes = fig.add_subplot(111, projection='3d')
     else:
         plt.figure(figsize=figsize)
     colorpallet = ['b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3', 'b', 'g', 'r', 'c', 'm', 'y', 'k', '#c1c3e3']
@@ -16,19 +16,19 @@ def plot_coordinates(series_list: List[list], labels: List[str], figsize=(5, 5),
         y = [data[1] for data in series]
         if is3D:
             z = [data[2] for data in series]
-            ax.plot(x, y, z, marker='.', markersize=0.5, color=c, label=labels[i])
+            ax.plot(x, y, z, marker='.', markersize=0.5, color=c, label=labels[i]) # type: ignore
             if show_scatter:
-                ax.scatter(x, y, z, color=c, marker='o')
+                ax.scatter(x, y, z, color=c, marker='o') # type: ignore
         else:
             plt.plot(x, y, marker='.', markersize=0.5, color=c, label=labels[i])
             if show_scatter:
-                plt.scatter(x, y, marker='.', color=c, s=100)
+                plt.scatter(x, y, marker='.', color=c, s=100) # type: ignore
     
     if is3D:
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_title('--------------------------------3D plot of XYZ coordinates--------------------------------')
+        ax.set_xlabel('X') # type: ignore
+        ax.set_ylabel('Y') # type: ignore
+        ax.set_zlabel('Z') # type: ignore
+        ax.set_title('--------------------------------3D plot of XYZ coordinates--------------------------------') # type: ignore
     else:
         plt.xlabel('X')
         plt.ylabel('Y')
@@ -59,14 +59,14 @@ def plot_directions(position_series_list: List[list], direction_vector_list: Lis
         
         V = np.array(dirs)
         if is3D:
-            ax.quiver(x, y, z, V[:, 0], V[:, 1], V[:, 2], color=color, length=1, arrow_length_ratio=.2)
+            ax.quiver(x, y, z, V[:, 0], V[:, 1], V[:, 2], color=color, length=1, arrow_length_ratio=.2) # type: ignore
         else:
             plt.quiver(x, y, V[:, 0], V[:, 1], color=color, scale=2, units="xy", width=0.025)
 
     if is3D:
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+        ax.set_xlabel('X') # type: ignore
+        ax.set_ylabel('Y') # type: ignore
+        ax.set_zlabel('Z') # type: ignore
     else:
         plt.xlabel('X')
         plt.ylabel('Y')

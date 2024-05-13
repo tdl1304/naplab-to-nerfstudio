@@ -121,7 +121,7 @@ class GPSPointDataset(Dataset):
         self.position_std = positions.std(axis=0)
         
         for gps_point in self.data:
-            gps_point.timestamp = (gps_point.timestamp - self.min_timestamp) / (self.max_timestamp - self.min_timestamp)
+            gps_point.timestamp = (gps_point.timestamp - self.min_timestamp) / (self.max_timestamp - self.min_timestamp) # type: ignore
             gps_point.position = (gps_point.position - self.position_mean) / self.position_std
         
         self.timestamp_tensors = torch.tensor(np.array([gps_point.timestamp for gps_point in self.data]), dtype=torch.float32).unsqueeze(1).to(device)

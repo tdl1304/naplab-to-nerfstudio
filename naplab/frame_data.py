@@ -1,6 +1,6 @@
 from dataclasses import InitVar, dataclass
 import math
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from .utils import make_homogenous, normalize, utm_to_blender_rotation
@@ -14,16 +14,16 @@ class FrameData:
     next_gps_right: InitVar[GPSPoint]
 
 
-    timestamp: int = None
-    file_name: str = None
-    left_point: np.ndarray = None
-    right_point: np.ndarray = None
-    center: np.ndarray = None
-    yaw: float = None
-    pitch: float = None
-    roll: float = None
+    timestamp: int = None # type: ignore
+    file_name: str = None # type: ignore
+    left_point: np.ndarray = None # type: ignore
+    right_point: np.ndarray = None # type: ignore
+    center: np.ndarray = None # type: ignore
+    yaw: float = None # type: ignore
+    pitch: float = None # type: ignore
+    roll: float = None # type: ignore
 
-    def __post_init__(self, gps_left: GPSPoint, gps_right: GPSPoint, next_gps_left: GPSPoint = None, next_gps_right: GPSPoint = None):
+    def __post_init__(self, gps_left: GPSPoint, gps_right: GPSPoint, next_gps_left: GPSPoint, next_gps_right: GPSPoint):
         if gps_left.position.shape != gps_right.position.shape:
             raise Exception("mismatched gps position shape")
         self.left_point = make_homogenous(gps_left.position)

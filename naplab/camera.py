@@ -2,14 +2,16 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 import os
 import subprocess
-from typing import List
+from typing import List, Optional
 import numpy as np
+import numpy.typing as npt
 from scipy.spatial.transform import Rotation as R
 from .frame_data import FrameData
 from .utils import create_bmp, make_homogenous, normalize, utm_to_blender_rotation
 import json
 from scipy.optimize import curve_fit
 import re
+import pycolmap
 
 
 class Camera():
@@ -73,7 +75,7 @@ class Camera():
         }
     
     
-    def calculate_distortion_coeff(self) -> 'np.ndarray[float]':
+    def calculate_distortion_coeff(self) -> npt.NDArray:
         # Assumes f-theta camera model
         # Define the backward polynomial b(r)
         if self.coefficients is not None:
@@ -107,9 +109,14 @@ class Camera():
         
     def get_colmap_camera_description(self):
         k1, k2, k3, k4 = self.calculate_distortion_coeff()
-        return f"{self.id} OPENCV_FISHEYE {self.width} {self.height} {self.fx} {self.fy} {self.cx} {self.cy} {k1} {k2} {k3} {k4}"
+        return f"{self.id} OPENCV_FISHEYE {self.width} {self.height} {self.fx:9.4f} {self.fy:9.4f} {self.cx:9.4f} {self.cy:8.4f} {k1:.6f} {k2:.6f} {k3:.6f} {k4:.6f}"
 
-    def get_rotation_matrix(self, roll_pitch_yaw: tuple = None):
+    def get_colmap_camera(self):
+        k1, k2, k3, k4 = self.calculate_distortion_coeff()
+        return pycolmap.Camera(camera_id=self.id, model="OPENCV_FISHEYE", width=self.width, height=self.height, params=[self.fx, self.fy, self.cx, self.cy, k1, k2, k3, k4])
+
+
+    def get_rotation_matrix(self, roll_pitch_yaw: Optional[tuple] = None):
         """Create a rotation matrix from roll, pitch, and yaw."""
         if roll_pitch_yaw is None:
             roll_pitch_yaw = self.roll_pitch_yaw
@@ -144,7 +151,13 @@ class Camera():
 
     def get_quaternion(self, frame: FrameData):
         rotation = frame.get_rotation_matrix() @ self.get_rotation_matrix()
-        return R.from_matrix(rotation[:3, :3]).as_quat(True)
+        return R.from_matrix(rotation[:3, :3]).as_quat()
+    
+    def get_rigid_3d(self, frame: FrameData):
+        quat = self.get_quaternion(frame)
+        t = self.get_translation_vector(frame)
+        return pycolmap.Rigid3d(pycolmap.Rotation3d(quat), t[:3])
+
     
     def get_translation_matrix(self):
         translation_matrix = np.identity(4)
@@ -273,7 +286,7 @@ def parse_camera_json(filepath: str) -> List[Camera]:
         raw_bw_poly: str = props["bw-poly"]
         bw_poly = np.array([float(x) for x in raw_bw_poly.strip().split(" ")[1:]])
         fov = 120 if "120" in camera["name"] else 60
-        video_path, timestamps_path = re.search(r"video=(.*),timestamp=(.*)", parameter).groups()
+        video_path, timestamps_path = re.search(r"video=(.*),timestamp=(.*)", parameter).groups() # type: ignore
         cam = Camera(camera["name"], float(props["cx"]), float(props["cy"]), int(props["height"]), int(props["width"]), sensorProps["t"], sensorProps["roll-pitch-yaw"], 
                                  fov=fov, bw_poly=bw_poly, video_path=f"{folder_path}/{video_path}", timestamps_path=f"{folder_path}/{timestamps_path}", id=i)
         cam.set_car_mask(carmask["data/rle16-base64"], carmask["resolution"])
