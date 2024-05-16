@@ -15,5 +15,5 @@ pip install -r requirements.txt
 
 ## Process in nerfstudio
 ```
-ns-process-data images --data ./nerfstudio/images/ --output-dir ./test --skip-colmap --colmap-model-path ../outputs/sfm/sfm_superpoint+superglue/
+ns-process-data images --data ./nerfstudio/images/ --output-dir ./test --skip-colmap --colmap-model-path ../outputs/sfm/sfm_superpoint+superglue/ --sfm-tool hloc
 ```
