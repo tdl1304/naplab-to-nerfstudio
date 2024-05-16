@@ -28,16 +28,43 @@ class ImagesWithTransforms():
             image_index = timestamps.index(frame.timestamp)
             image_path = f"{self.output_dir}/{self.camera.id}_{image_index}.png"
             self.images_with_transforms.append(ImageData(image_index, image_path, transform))
+
+    def recompute_images(self):
+        self.images_with_transforms: List[ImageData] = []
+        for frame in self.frames:
+            transform = self.camera.get_blender_transform_matrix(frame).tolist()
+            image_index = self.camera.timestamps.index(frame.timestamp)
+            image_path = f"{self.output_dir}/{self.camera.id}_{image_index}.png"
+            self.images_with_transforms.append(ImageData(image_index, image_path, transform))
+        
         
         
 
 class NaplabDataset():
-    def __init__(self, gps_left: str, gps_right: str, fps: int, n = 15, rig_json_path: str = "./Trip094/camerasandCanandGnssCalibratedAll_lidars00-virtual.json", skip_image_creation = False) -> None:
+    def __init__(self, gps_left: str, gps_right: str, fps: int, n = 15, rig_json_path: str = "./Trip094/camerasandCanandGnssCalibratedAll_lidars00-virtual.json", skip_image_creation = False, center=True) -> None:
         stride = np.max([30//fps, 2])
         self.cameras = parse_camera_json(rig_json_path)
         self.all_images_with_transforms = [ImagesWithTransforms(camera, gps_left, gps_right, n=n, stride=stride) for camera in self.cameras]
         self.skip_image_creation = skip_image_creation
-        
+        self.global_translate = np.array((0, 0, 0))
+        if center:
+            all_frames = []
+            all_transforms = []
+            for images_with_transform in self.all_images_with_transforms:
+                for frame in images_with_transform.frames:
+                    all_frames.append(frame)
+                    all_transforms.append(frame.center)
+            all_transforms = np.array(all_transforms)
+            x_min, y_min, z_min, _ = all_transforms.min(axis=0)
+            min_vec = np.array([x_min, y_min, z_min, 0])
+            for frame in all_frames:
+                frame.center -= min_vec
+            for images_with_transform in self.all_images_with_transforms:
+                images_with_transform.recompute_images()
+            self.global_translate = min_vec[:3]
+            
+        print("translation factor: ", self.global_translate)
+
     def create_colmap_dataset(self, out_dir: str):
         """
         create images.txt

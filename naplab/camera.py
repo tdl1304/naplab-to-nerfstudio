@@ -30,6 +30,7 @@ class Camera():
         self.timestamps = self._read_timestamps(timestamps_path) if timestamps_path else []
         self.video_path = video_path
         self.roll_pitch_yaw = roll_pitch_yaw
+        self.rotation = R.from_euler("xyz", roll_pitch_yaw)
         self.description = name
         self.coefficients = None
         self.image_names = None
@@ -154,9 +155,20 @@ class Camera():
         return R.from_matrix(rotation[:3, :3]).as_quat()
     
     def get_rigid_3d(self, frame: FrameData):
-        quat = self.get_quaternion(frame)
-        t = self.get_translation_vector(frame)
-        return pycolmap.Rigid3d(pycolmap.Rotation3d(quat), t[:3])
+        transform = self.get_blender_transform_matrix(frame)
+
+        roll, pitch, yaw = self.roll_pitch_yaw
+        cr = R.from_euler("yzx", [frame.roll, frame.pitch, frame.yaw])
+
+        rotation_matrix = frame.get_rotation_matrix() @ self.get_rotation_matrix()
+        rotation_matrix = np.identity(3)
+        rotation_matrix = self.get_blender_transform_matrix(frame)[:3,:3]
+        r = R.from_matrix(rotation_matrix[:3, :3])
+        q = r.as_quat()
+
+        t = transform[:3, 3]
+        #t = self.get_translation_vector(frame)[:3]
+        return pycolmap.Rigid3d(pycolmap.Rotation3d(q), r.apply(t, inverse=False))
 
     
     def get_translation_matrix(self):
