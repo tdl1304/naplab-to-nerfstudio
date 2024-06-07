@@ -2,6 +2,7 @@
 Convert naplab to nerfstudio data format
 
 ## Install Trip094
+Request permission first, or request access from NTNU IDI
 ```
 pip install gdown
 gdown 15YWaN8pq19Oeo0SEx3UKi0Y8O976UM0M
