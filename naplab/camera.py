@@ -220,7 +220,7 @@ class Camera():
         roll, pitch, yaw = R.from_matrix(rotation[:3, :3]).as_euler("xyz", degrees=True)
         # Basis change
         roll, pitch, yaw = pitch, yaw, roll
-        x, y, z = y, z, -x
+        x, y, z = -y, z, -x
         
         transform = self.get_rotation_matrix((roll, pitch, yaw))
         transform[:3, 3] = np.array([x, y, z])
