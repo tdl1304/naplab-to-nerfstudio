@@ -77,3 +77,4 @@ def create_dataset_from_rig(rig_path: Path, output_path: Path, left_gps_file: Pa
 
     model = recon_main_post(*intermediate)
     create_transform_json(model, images, output_path)
+    return model

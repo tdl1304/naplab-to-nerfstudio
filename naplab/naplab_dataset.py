@@ -203,7 +203,7 @@ def create_transform_json(reconstruction: pycolmap.Reconstruction, image_source:
         t =  r.apply(t, True)
 
         matrix = np.eye(4)
-        matrix[:3, :3] = np.linalg.inv(rotation)
+        matrix[:3, :3] = rotation
         matrix[:3, 3] = t
 
         cam_p = cam.params
