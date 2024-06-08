@@ -419,7 +419,7 @@ def example_usage():
 
     # Clean up.
 
-    db.close()
+    
 
     if os.path.exists(args.database_path):
         os.remove(args.database_path)

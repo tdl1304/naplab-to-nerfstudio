@@ -24,7 +24,7 @@ def create_empty_db(database_path: Path):
     db = COLMAPDatabase.connect(database_path)
     db.create_tables()
     db.commit()
-    db.close()
+    
 
 
 def import_images(
@@ -55,7 +55,7 @@ def get_image_ids(database_path: Path) -> Dict[str, int]:
     images = {}
     for name, image_id in db.execute("SELECT name, image_id FROM images;"):
         images[name] = image_id
-    db.close()
+    
     return images
 
 
