@@ -200,11 +200,10 @@ def create_transform_json(reconstruction: pycolmap.Reconstruction, image_source:
         rotation = im_data.cam_from_world.matrix()[:3, :3]
         r = R.from_matrix(rotation)
         t = np.array(im_data.cam_from_world.matrix())[:3, 3]
-        t =  r.apply(t, True)
-
         matrix = np.eye(4)
-        matrix[:3, :3] = rotation
-        matrix[:3, 3] = t
+        opencv_to_blender_matrix = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]]) # OPENCV TO BLENDER CAMERA
+        matrix[:3, :3] = r.as_matrix().T @ opencv_to_blender_matrix # r^T @ base_change_matrix
+        matrix[:3, 3] = -r.as_matrix().T @ t # -r^T @ t
 
         cam_p = cam.params
         frame = {
